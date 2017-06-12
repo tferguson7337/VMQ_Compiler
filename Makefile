@@ -3,10 +3,10 @@ HDIR = hdr
 
 cVMQ:	${CDIR}/lexer.c ${CDIR}/parser.tab.c \
 		${CDIR}/main.c ${CDIR}/AST.c ${CDIR}/data_lists.c ${CDIR}/data_rep.c \
-		${CDIR}/error_handling.c ${CDIR}/fileIO.c ${CDIR}/helper_functions.c \
-		${CDIR}/scope.c ${CDIR}/symbol_table.c \
+		${CDIR}/error_handling.c ${CDIR}/eval.c ${CDIR}/fileIO.c \
+		${CDIR}/helper_functions.c ${CDIR}/scope.c ${CDIR}/symbol_table.c \
 		${HDIR}/AST.h ${HDIR}/data_lists.h  ${HDIR}/data_rep.h ${HDIR}/error_handling.h \
-		${HDIR}/fileIO.h ${HDIR}/helper_functions.h ${HDIR}/parser.tab.h \
+		${HDIR}/eval.h ${HDIR}/fileIO.h ${HDIR}/helper_functions.h ${HDIR}/parser.tab.h \
 		${HDIR}/scope.h ${HDIR}/symbol_table.h
 		cc -g -I ${CDIR} -I ${HDIR} -o $@ ${CDIR}/parser.tab.c ${CDIR}/lexer.c \
 		${CDIR}/main.c ${CDIR}/AST.c ${CDIR}/error_handling.c ${CDIR}/fileIO.c \
