@@ -3,6 +3,7 @@
 
 %{
 	#include "parser.tab.h"
+	#include "AST.h"
 	#include <stdio.h>
 	#include <stdlib.h>
 	int yylex();
@@ -37,6 +38,11 @@
 
 /* Keyword tokens */
 %token CIN COUT ELSE ENDL FLOAT IF INT RETURN WHILE
+
+/* Nodetype Tokens - for identifying nodes later in the evaluation stage */
+%token PROG FUNC_DEF ID_LIST VAR_DEF TYPE FUNC_HEAD ARGS PARAM_LIST
+%token PARAMS BLOCK STMTS STMT INPUT OUTPUT COMP_STMT VAR
+%token EXPR_LIST EXPRS EXPR SIMP_EXPR TERM FACTOR LITERAL BOOL_EXPR BOOL_TERM BOOL_FACTOR
 
 /* Precedence and Associativity */
 
