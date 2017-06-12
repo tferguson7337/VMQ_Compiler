@@ -45,10 +45,10 @@ struct func_list_node
 typedef struct func_list_node* FUNC_LIST;
 
 /* List Append Functions - Initializes list if list is empty */
-void appendToIntList(INT_LIST* list, struct intlit** val);
-void appendToFltList(FLT_LIST* list, struct fltlit** val);
-void appendToStrList(STR_LIST* list, struct strlit** val);
-void appendToVarList(VAR_LIST* list, struct varref** var);
-void appendToFuncList(FUNC_LIST* list, char* func_name);
+struct int_list_node* appendToIntList(INT_LIST* list, struct intlit** val);
+struct flt_list_node* appendToFltList(FLT_LIST* list, struct fltlit** val);
+struct str_list_node* appendToStrList(STR_LIST* list, struct strlit** val);
+struct var_list_node* appendToVarList(VAR_LIST* list, struct varref** var);
+struct func_list_node* appendToFuncList(FUNC_LIST* list, char* func_name);
 
 #endif

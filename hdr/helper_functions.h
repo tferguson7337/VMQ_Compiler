@@ -26,6 +26,9 @@ struct func_list_node* current_func;
 /* Stack for tracking scope (top of stack == current scope) */
 SCOPE scope_stack_head;
 
+/* Tracks the global scope for quickly storing INT, FLT, and STR literals. */
+struct scope_stack_node* global_scope;
+
 struct AST_node* AST_root;
 
 //	=========

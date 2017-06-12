@@ -11,4 +11,6 @@ void init()
 	func_list_head = current_func = NULL;
 	
 	pushScope(&scope_stack_head);
+
+	global_scope = scope_stack_head;
 }
