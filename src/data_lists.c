@@ -20,7 +20,7 @@ struct int_list_node* appendToIntList(INT_LIST* list, struct intlit** val)
     {
         while(temp->next)
 	{
-	    if(strcmp(((*val)->val, temp->pil->val) == 0)
+	    if(strcmp((*val)->val, temp->pil->val) == 0)
 		return temp;
 	    else
 		temp = temp->next;

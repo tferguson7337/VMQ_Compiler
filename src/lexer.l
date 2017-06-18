@@ -63,31 +63,31 @@ NEWLINE (\n)
 
 %%
 
-{ASSIGNOP}			{ return ASSIGNOP; }
+{ASSIGNOP}	    { return ASSIGNOP; }
 
-{MULOP}				{ if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; return MULOP; }
+{MULOP}		    { if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; return MULOP; }
 
-{ADDOP}				{ if(yytext[0] == '+') yylval.op_type = 1; else yylval.op_type = 2; return ADDOP; }
+{ADDOP}		    { if(yytext[0] == '+') yylval.op_type = 1; else yylval.op_type = 2; return ADDOP; }
 
-{INCOP}				{ if(strcmp(yytext, "+=") == 0) yylval.op_type = 1; else yylval.op_type = 2; return INCOP; }
+{INCOP}		    { if(strcmp(yytext, "+=") == 0) yylval.op_type = 1; else yylval.op_type = 2; return INCOP; }
 
-{RELOP}				{ yylval.op_type = 0; for(int idx = 0; idx < 6; ++idx) { ++(yylval.op_type); if(strcmp(yytext, relops[idx]) == 0) break; } return RELOP; }
+{RELOP}		    { yylval.op_type = 0; for(int idx = 0; idx < 6; ++idx) { ++(yylval.op_type); if(strcmp(yytext, relops[idx]) == 0) break; } return RELOP; }
 
-{NOT}				{ return NOT; }
+{NOT}		    { return NOT; }
 
-{OR}				{ return OR; }
+{OR}		    { return OR; }
 
-{AND}				{ return AND; }
+{AND}	            { return AND; }
 
-{FLT_LITERAL}		{ yylval.str = strdup(yytext); return FLT_LITERAL; }
+{FLT_LITERAL}	    { yylval.str = strdup(yytext); return FLT_LITERAL; }
 
-{INT_LITERAL}		{ yylval.str = strdup(yytext); return INT_LITERAL; }
+{INT_LITERAL}	    { yylval.str = strdup(yytext); return INT_LITERAL; }
 
-{STR_LITERAL}       { yylval.str = strdup(yytext); return STR_LITERAL; }
+{STR_LITERAL}	    { yylval.str = strdup(yytext); return STR_LITERAL; }
 
-{STREAMIN}			{ return STREAMIN; }
+{STREAMIN}	    { return STREAMIN; }
 
-{STREAMOUT}			{ return STREAMOUT; }
+{STREAMOUT}	    { return STREAMOUT; }
 
 {CIN}               { return CIN; }
 
@@ -107,7 +107,7 @@ NEWLINE (\n)
 
 {WHILE}             { return WHILE; }
 
-{ID}				{ yylval.str = strdup(yytext); return ID; }
+{ID}		    { yylval.str = strdup(yytext); return ID; }
 
 {O_PAREN} |
 {C_PAREN} |
@@ -116,16 +116,16 @@ NEWLINE (\n)
 {O_BRACE} |
 {C_BRACE} |
 {END_STMT} |
-{COMMA}				{ return yytext[0]; }
+{COMMA}		    { return yytext[0]; }
 
 {LINE_CMNT} |
-{BLK_CMNT}	|
-{PRE_PROC}			{ }
+{BLK_CMNT}  |
+{PRE_PROC}	    { }
 
-{NEWLINE}			{ }
+{NEWLINE}	    { }
 
-[ \t\v]+			{ }
+[ \t\v]+	    { }
 
-.					{ /* mystery character */ printf("\n\tMYSTERY CHAR %s\n", yytext); }
+.		    { /* mystery character */ printf("\n\tMYSTERY CHAR %s\n", yytext); }
 
 %%
