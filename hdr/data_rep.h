@@ -11,13 +11,13 @@
 struct intlit
 {
 	unsigned int VMQ_loc;
-	int val;
+	char* val;
 };
 
 struct fltlit
 {
 	unsigned int VMQ_loc; 
-	double val;
+	char* val;
 };
 
 struct strlit
@@ -41,9 +41,9 @@ struct varref
 	struct var* val;
 };
 
-struct intlit* newIntLit(int n);
+struct intlit* newIntLit(char* val);
 
-struct fltlit* newFltLit(double d);
+struct fltlit* newFltLit(char* val);
 
 struct strlit* newStrLit(char* str);
 

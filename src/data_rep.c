@@ -3,26 +3,26 @@
 #include "data_rep.h"
 #include "error_handling.h"
 
-struct intlit* newIntLit(int n)
+struct intlit* newIntLit(char* val)
 {
 	struct intlit* pil = malloc(sizeof(struct intlit));
 
 	if(!pil) { yyerror("\n\tnewIntLit() - Memory Allocation Failed!\n"); exit(-1); }
 
 	pil->VMQ_loc = 0;
-	pil->val = n;
+	pil->val = strdup(val);
 
 	return pil;
 }
 
-struct fltlit* newFltLit(double d)
+struct fltlit* newFltLit(char* val)
 {
 	struct fltlit* pfl = malloc(sizeof(struct fltlit));
 	
 	if(!pfl) { yyerror("\n\tnewFltLit() - Memory Allocation Failed!\n"); exit(-1); }
 
 	pfl->VMQ_loc = 0;
-	pfl->val = d;
+	pfl->val = strdup(val);
 
 	return pfl;
 }
