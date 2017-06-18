@@ -13,9 +13,9 @@ enum { VMQ_INT_SIZE = 2, VMQ_FLT_SIZE = 4 };
 
 /* Lists for tracking global VMQ memory-space elements */
 INT_LIST int_list_head;
-FLT_LIST flt_list_head;
+FLT_LIST flt_list_head;		    // All int/flt/str literals will be stored in VMQ global memory space.
 STR_LIST str_list_head;
-VAR_LIST global_var_list_head;
+VAR_LIST global_var_list_head;	    // All variables in C++ global scope will be stored in VMQ global memory space.
 
 /* List for tracking functions as they are encountered in src file */
 FUNC_LIST func_list_head;
