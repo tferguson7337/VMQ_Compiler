@@ -30,16 +30,16 @@ struct int_list_node* appendToIntList(INT_LIST* list, struct intlit** val)
 
 struct flt_list_node* appendToFltList(FLT_LIST* list, struct fltlit** val)
 {
-	if(!list) { yyerror("\n\tappendToFltList() - list ptr given NULL addr\n"); exit(-1); }
+    if(!list) { yyerror("\n\tappendToFltList() - list ptr given NULL addr\n"); exit(-1); }
 	
-	struct flt_list_node* temp = *list;
+    struct flt_list_node* temp = *list;
 
-	if(!(*list))
+    if(!(*list))
     {
         (*list) = malloc(sizeof(struct flt_list_node));
         (*list)->pfl = *val;
         (*list)->next = NULL;
-	}
+    }
     else
     {
         while(temp->next) temp = temp->next;
@@ -47,33 +47,33 @@ struct flt_list_node* appendToFltList(FLT_LIST* list, struct fltlit** val)
         temp = temp->next = malloc(sizeof(struct flt_list_node));
         temp->pfl = *val;
         temp->next = NULL;
-	}
+    }
 
-	return temp;
+    return temp;
 }
 
 struct str_list_node* appendToStrList(STR_LIST* list, struct strlit** val)
 {
-	if(!list) { yyerror("\n\tappendToStrList() - list ptr given NULL addr\n"); exit(-1); }
+    if(!list) { yyerror("\n\tappendToStrList() - list ptr given NULL addr\n"); exit(-1); }
 
-	struct str_list_node* temp = *list;
+    struct str_list_node* temp = *list;
 
-	if(!(*list))
+    if(!(*list))
     {
         (*list) = malloc(sizeof(struct str_list_node));
         (*list)->psl = *val;
         (*list)->next = NULL;
-	}
+    }
     else
     {
         while(temp->next) temp = temp->next;
 
         temp = temp->next = malloc(sizeof(struct str_list_node));
         temp->psl = *val;
-        temp->next = NULL;
-	}
+	temp->next = NULL;
+    }
 
-	return temp;
+    return temp;
 }
 
 struct var_list_node* appendToVarList(VAR_LIST* list, struct varref** val)
