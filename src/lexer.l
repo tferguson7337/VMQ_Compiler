@@ -115,12 +115,78 @@ NEWLINE (\n)
 {ID}		    {
 			if(definingInt || definingFlt)
 			{
+			    if(symbolTableLookup(yytext))
+				yyerror("Variable redefinition");
+			    else
+				addToSymbolTable(&SCOPE_STACK_HEAD, yytext);
 			    
+			    int isGlobal = 0;
+			    if(GLOBAL_SCOPE == SCOPE_STACK_HEAD)
+			    {
+				isGlobal = 1;
+				isParam = 0;	// Function parameters should be zero (should be set to 0 anyway - just being safe).
+				if(definingInt)
+				    yylval.VAR_REF = appendToVarList(&GLOBAL_VAR_LIST_HEAD, INT, yytext, isGlobal, isParam)->pvr;
+				else
+				    yylval.VAR_REF = appendToVarList(&GLOBAL_VAR_LIST_HEAD, FLOAT, yytext, isGlobal, isParam)->pvr;
+			    }
+			    else
+			    {
+				if(definingInt)
+				    yylval.VAR_REF = appendToVarList(&(CURRENT_FUNC->var_list), INT, yytext, isGlobal, isParam)->pvr;
+				else
+				    yylval.VAR_REF = appendToVarList(&(CURRENT_FUNC->var_list), FLOAT, yytext, isGlobal, isParam)->pvr;
+			    }
+
+			    return ID;
 			}
-			return ID; 
+			else // Referencing variable (not defining)
+			{
+			    if(!symbolTableLookup(yytext))
+				yyerror("Using undefined variable");
+			    
+			    // Variable exists - check global list first.
+			    struct var_list_node* varListPtr = GLOBAL_VAR_LIST_HEAD;
+			    struct var* varPtr;
+			    while(varListPtr)
+			    {
+				varPtr = varListPtr->pvr->val;
+				if(strcmp(varPtr, yytext) == 0)
+				{
+				    yylval.VAR_REF = varListPtr->pvr;
+				    return ID;
+				}
+				varListPtr = varListPtr->next;
+			    }
+
+			    varListPtr = CURRENT_FUNC->var_list;
+			    while(varListPtr)
+			    {
+				varPtr = varListPtr->pvr->val;
+				if(strcmp(varPtr, yytext) == 0)
+				{
+				    yylval.VAR_REF = varListPtr->pvr;
+				    return ID;
+				}
+				varListPtr = varListPtr->next;
+			    }
+
+			    yyerror("Variable reference not found in global or local list!");
+			}
 		    }
 
-{ID}/([ \t\v]*"(")  { if(!(definingInt || definingFlt)){ /* Func Call */  } else{ /* Func Def */ isParam = 1; } return ID; }
+{ID}/([ \t\v]*"(")  {	
+			if(definingInt || definingFlt)
+			{   // Function definition
+			    isParam = 1;
+			}
+			else // Function call
+			{ 
+			    
+			}
+
+			return ID; 
+		    }
 
 {O_PAREN}	    { return yytext[0]; }
 {C_PAREN} 	    { definingInt = definingFlt = isParam = 0; return yytext[0]; }
