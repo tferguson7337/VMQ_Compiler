@@ -3,14 +3,14 @@
 
 void init()
 {
-	int_list_head = NULL;
-	flt_list_head = NULL;
-	str_list_head = NULL;
-	global_var_list_head = NULL;
+	INT_LIST_HEAD = NULL;
+	FLT_LIST_HEAD = NULL;
+	STR_LIST_HEAD = NULL;
+	GLOBAL_VAR_LIST_HEAD = NULL;
 
-	func_list_head = current_func = NULL;
+	FUNC_LIST_HEAD = CURRENT_FUNC = NULL;
 	
-	pushScope(&scope_stack_head);
+	pushScope(&SCOPE_STACK_HEAD);
 
-	global_scope = scope_stack_head;
+	GLOBAL_SCOPE = SCOPE_STACK_HEAD;
 }

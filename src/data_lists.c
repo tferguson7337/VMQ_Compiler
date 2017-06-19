@@ -4,7 +4,7 @@
 #include "data_lists.h"
 
 /* List Append Functions */
-struct int_list_node* appendToIntList(INT_LIST* list, struct intlit** val)
+struct int_list_node* appendToIntList(INT_LIST* list, char* val)
 {
     if(!list) { yyerror("\n\tappendToIntList() - list ptr given NULL addr\n"); exit(-1); }
 
@@ -13,27 +13,27 @@ struct int_list_node* appendToIntList(INT_LIST* list, struct intlit** val)
     if(!(*list))
     {
         (*list) = malloc(sizeof(struct int_list_node));
-        (*list)->pil = *val;
+        (*list)->pil = newIntLit(val);
         (*list)->next = NULL;
     }
     else
     {
         while(temp->next)
 	{
-	    if(strcmp((*val)->val, temp->pil->val) == 0)
+	    if(strcmp(val, temp->pil->val) == 0)
 		return temp;
 	    else
 		temp = temp->next;
 	}
         temp = temp->next = malloc(sizeof(struct int_list_node));
-        temp->pil= *val;
+        temp->pil= newIntLit(val);
         temp->next = NULL;
     }
 
 	return temp;
 }
 
-struct flt_list_node* appendToFltList(FLT_LIST* list, struct fltlit** val)
+struct flt_list_node* appendToFltList(FLT_LIST* list, char* val)
 {
     if(!list) { yyerror("\n\tappendToFltList() - list ptr given NULL addr\n"); exit(-1); }
 	
@@ -42,28 +42,28 @@ struct flt_list_node* appendToFltList(FLT_LIST* list, struct fltlit** val)
     if(!(*list))
     {
         (*list) = malloc(sizeof(struct flt_list_node));
-        (*list)->pfl = *val;
+        (*list)->pfl = newFltLit(val);
         (*list)->next = NULL;
     }
     else
     {
         while(temp->next)
 	{
-	    if(strcmp((*val)->val, temp->pfl->val) == 0)
+	    if(strcmp(val, temp->pfl->val) == 0)
 		return temp;
 	    else
 		temp = temp->next;
 	}
 
         temp = temp->next = malloc(sizeof(struct flt_list_node));
-        temp->pfl = *val;
+        temp->pfl = newFltLit(val);
         temp->next = NULL;
     }
 
     return temp;
 }
 
-struct str_list_node* appendToStrList(STR_LIST* list, struct strlit** val)
+struct str_list_node* appendToStrList(STR_LIST* list, char* val)
 {
     if(!list) { yyerror("\n\tappendToStrList() - list ptr given NULL addr\n"); exit(-1); }
 
@@ -72,27 +72,27 @@ struct str_list_node* appendToStrList(STR_LIST* list, struct strlit** val)
     if(!(*list))
     {
         (*list) = malloc(sizeof(struct str_list_node));
-        (*list)->psl = *val;
+        (*list)->psl = newStrLit(val);
         (*list)->next = NULL;
     }
     else
     {
         while(temp->next)
 	{
-	    if(strcmp((*val)->val, temp->psl->val) == 0)
+	    if(strcmp(val, temp->psl->val) == 0)
 		return temp;
 	    else
 		temp = temp->next;
 	}
         temp = temp->next = malloc(sizeof(struct str_list_node));
-        temp->psl = *val;
+        temp->psl = newStrLit(val);
 	temp->next = NULL;
     }
 
     return temp;
 }
 
-struct var_list_node* appendToVarList(VAR_LIST* list, struct varref** val)
+struct var_list_node* appendToVarList(VAR_LIST* list, int var_type, char* var_name, int isGlobal, int isParam)
 {
     if(!list) { yyerror("\n\tappendToVarList() - list ptr given NULL addr\n"); exit(-1); }
 
@@ -101,20 +101,22 @@ struct var_list_node* appendToVarList(VAR_LIST* list, struct varref** val)
     if(!(*list))
     {
 	(*list) = malloc(sizeof(struct var_list_node));
-	(*list)->pvr = *val;
+	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, 0);
+	(*list)->pvr = newVarRef(&pv);
 	(*list)->next = NULL;
     }
     else
     {
 	while(temp->next)
 	{
-	    if(strcmp((*val)->val->var_name, temp->pvr->val->var_name) == 0)
+	    if(strcmp(var_name, temp->pvr->val->var_name) == 0)
 		return temp;
 	    else
 		temp = temp->next;
 	}
 	temp = temp->next = malloc(sizeof(struct var_list_node));
-	temp->pvr = *val;
+	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, 0);
+	temp->pvr = newVarRef(&pv);
 	temp->next = NULL;
     }
 

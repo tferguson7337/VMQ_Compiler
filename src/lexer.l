@@ -7,8 +7,13 @@
  * Data structures, #include's, and other things needed
  * by the pattern-match code blocks below go here in here.
 */
-
+#include "helper_functions.h"
 #include "parser.tab.h"
+
+/* Var/Func Definition Flags */
+int definingInt = 0;
+int definingFlt = 0;
+int isParam = 0;
 
 char* relops[] = {"<", ">", "<=", ">=", "==", "!="};
 
@@ -79,11 +84,11 @@ NEWLINE (\n)
 
 {AND}	            { return AND; }
 
-{FLT_LITERAL}	    { yylval.str = strdup(yytext); return FLT_LITERAL; }
+{FLT_LITERAL}	    { yylval.FLT_LIT = (appendToFltList(&FLT_LIST_HEAD, yytext))->pfl; return FLT_LITERAL; }
 
-{INT_LITERAL}	    { yylval.str = strdup(yytext); return INT_LITERAL; }
+{INT_LITERAL}	    { yylval.INT_LIT = (appendToIntList(&INT_LIST_HEAD, yytext))->pil; return INT_LITERAL; }
 
-{STR_LITERAL}	    { yylval.str = strdup(yytext); return STR_LITERAL; }
+{STR_LITERAL}	    { yylval.STR_LIT = (appendToStrList(&STR_LIST_HEAD, yytext))->psl; return STR_LITERAL; }
 
 {STREAMIN}	    { return STREAMIN; }
 
@@ -97,34 +102,42 @@ NEWLINE (\n)
 
 {ENDL}              { return ENDL; }
 
-{FLOAT}             { return FLOAT; }
+{FLOAT}             { definingFlt = 1; return FLOAT; }
 
 {IF}                { return IF; }
 
-{INT}               { return INT; }
+{INT}               { definingInt = 1; return INT; }
 
 {RETURN}            { return RETURN; }
 
 {WHILE}             { return WHILE; }
 
-{ID}		    { yylval.str = strdup(yytext); return ID; }
+{ID}		    {
+			if(definingInt || definingFlt)
+			{
+			    
+			}
+			return ID; 
+		    }
 
-{O_PAREN} |
-{C_PAREN} |
-{O_BRACK} |
-{C_BRACK} |
-{O_BRACE} |
-{C_BRACE} |
-{END_STMT} |
+{ID}/([ \t\v]*"(")  { if(!(definingInt || definingFlt)){ /* Func Call */  } else{ /* Func Def */ isParam = 1; } return ID; }
+
+{O_PAREN}	    { return yytext[0]; }
+{C_PAREN} 	    { definingInt = definingFlt = isParam = 0; return yytext[0]; }
+{O_BRACK} 	    { return yytext[0]; }
+{C_BRACK} 	    { return yytext[0]; }
+{O_BRACE}	    { return yytext[0]; }
+{C_BRACE} 	    { return yytext[0]; }
+{END_STMT} 	    { definingInt = definingFlt = 0; return yytext[0]; }
 {COMMA}		    { return yytext[0]; }
 
 {LINE_CMNT} |
 {BLK_CMNT}  |
-{PRE_PROC}	    { }
+{PRE_PROC}	    { /* Do nothing */  }
 
-{NEWLINE}	    { }
+{NEWLINE}	    {   }
 
-[ \t\v]+	    { }
+[ \t\v]+	    { /* Do nothing */  }
 
 .		    { /* mystery character */ printf("\n\tMYSTERY CHAR %s\n", yytext); }
 

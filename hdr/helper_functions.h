@@ -12,24 +12,24 @@
 enum { VMQ_INT_SIZE = 2, VMQ_FLT_SIZE = 4 };
 
 /* Lists for tracking global VMQ memory-space elements */
-INT_LIST int_list_head;
-FLT_LIST flt_list_head;		    // All int/flt/str literals will be stored in VMQ global memory space.
-STR_LIST str_list_head;
-VAR_LIST global_var_list_head;	    // All variables in C++ global scope will be stored in VMQ global memory space.
+INT_LIST INT_LIST_HEAD;
+FLT_LIST FLT_LIST_HEAD;		    // All int/flt/str literals will be stored in VMQ global memory space.
+STR_LIST STR_LIST_HEAD;
+VAR_LIST GLOBAL_VAR_LIST_HEAD;	    // All variables in C++ global scope will be stored in VMQ global memory space.
 
 /* List for tracking functions as they are encountered in src file */
-FUNC_LIST func_list_head;
+FUNC_LIST FUNC_LIST_HEAD;
 
-/* Tracks current function (effectively tail of func_list_head) */
-struct func_list_node* current_func;
+/* Tracks current function (effectively tail of FUNC_LIST_HEAD) */
+struct func_list_node* CURRENT_FUNC;
 
 /* Stack for tracking scope (top of stack == current scope) */
-SCOPE scope_stack_head;
+SCOPE SCOPE_STACK_HEAD;
 
 /* Tracks the global scope for quickly storing INT, FLT, and STR literals. */
-struct scope_stack_node* global_scope;
+struct scope_stack_node* GLOBAL_SCOPE;
 
-struct AST_node* AST_root;
+struct AST_node* AST_ROOT;
 
 //	=========
 //	Functions

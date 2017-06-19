@@ -13,7 +13,9 @@ typedef struct symbol_node* SYMBOL_TABLE;
 
 int hash(char* str);
 
-struct symbol_node* lookup(SYMBOL_TABLE* symTab, char* symbol);
+struct symbol_node* symbolTableLookup(char* symbol);
+
+void addToSymbolTable(SYMBOL_TABLE* symTab, char* symbol);
 
 SYMBOL_TABLE createSymbolTable();
 

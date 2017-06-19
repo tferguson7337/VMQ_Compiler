@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "error_handling.h"
+#include "helper_functions.h"
 #include "symbol_table.h"
 
 int hash(char* str)
@@ -14,35 +15,39 @@ int hash(char* str)
 	return n % SYMBOL_TABLE_SIZE;
 }
 
-struct symbol_node* lookup(SYMBOL_TABLE* symTab, char* symbol)
+void addToSymbolTable(SYMBOL_TABLE* symTab, char* symbol)
 {
-	if(!symTab || !(*symTab)) { yyerror("\n\tlookup() - NULL Symbol Table Address\n"); exit(-1); }
+    int idx = hash(symbol);
+    struct symbol_node* symPtr = &((*symTab)[idx]);
+    while(symPtr->next)
+	symPtr = symPtr->next;
 
+    symPtr = symPtr->next = malloc(sizeof(struct symbol_node));
+    symPtr->symbol = strdup(symbol);
+    symPtr->next = NULL;
+}
+
+struct symbol_node* symbolTableLookup(char* symbol)
+{
+    struct scope_stack_node* scopePtr = SCOPE_STACK_HEAD;
+    
+    while(scopePtr)
+    {	// Search in scopePtr's symbol table (Hash Table), starting with deepest scope.
 	int idx = hash(symbol);
-
-	struct symbol_node* psn = &((*symTab)[idx]);
-
-	// Search for symbol
-	while(psn)
+	struct symbol_node* symPtr = &((scopePtr->symTab)[idx]);
+	while(symPtr)
 	{
-		// Symbol found, return the node.
-		if(strcmp(psn->symbol, symbol) == 0)
-			return psn;
-		
-		// Hit last node, no match - break.
-		if(!(psn->next))
-			break;
-
-		psn = psn->next;
+	    if(strcmp(symPtr->symbol, symbol) == 0)
+		return symPtr;
+	    else
+		symPtr = symPtr->next;
 	}
+	// If symbol was not found, check higher scopes.
+	scopePtr = scopePtr->next;
+    }
 
-	// Symbol not in symbol table, add it and return it.
-	psn = psn->next = malloc(sizeof(struct symbol_node));
-
-	psn->symbol = strdup(symbol);
-	psn->next = NULL;
-	
-	return psn;
+    // Symbol not found.
+    return (struct symbol_node*)NULL;
 }
 
 SYMBOL_TABLE createSymbolTable()
