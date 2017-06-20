@@ -103,15 +103,15 @@ NEWLINE (\n)
 
 {ENDL}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ENDL; }
 
-{FLOAT}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingFlt = 1; return FLOAT; }
+{FLOAT}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingFlt = 1; yylval.op_type = FLOAT; return FLOAT; }
 
-{IF}                { if(DEBUG) printf("%s", yytext); fflush(stdout);  return IF; }
+{IF}/([ \t]*"(")    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return IF; }
 
-{INT}               { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = 1; return INT; }
+{INT}               { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = 1; yylval.op_type = INT; return INT; }
 
 {RETURN}            { if(DEBUG) printf("%s", yytext); fflush(stdout);  return RETURN; }
 
-{WHILE}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  return WHILE; }
+{WHILE}/([ \t]*"(") { if(DEBUG) printf("%s", yytext); fflush(stdout);  return WHILE; }
 
 {ID}		    {
 			if(DEBUG) printf("%s", yytext); fflush(stdout);  
@@ -217,11 +217,11 @@ NEWLINE (\n)
 			return ID; 
 		    }
 
-{O_PAREN}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  SCOPE_STACK_HEAD->isNewScope = 0; return yytext[0]; }
+{O_PAREN}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 {C_PAREN} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = definingFlt = 0; return yytext[0]; }
 {O_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 {C_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
-{O_BRACE}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{O_BRACE}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(!(SCOPE_STACK_HEAD->isNewScope)) pushScope(); SCOPE_STACK_HEAD->isNewScope = 0; return yytext[0]; }
 {C_BRACE} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  popScope(); return yytext[0]; }
 {END_STMT} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = definingFlt = 0; return yytext[0]; }
 {COMMA}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }

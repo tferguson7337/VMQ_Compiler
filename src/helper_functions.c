@@ -20,11 +20,35 @@ void init()
 void eval(struct AST_node* a)
 {
     if(!a) return;
-
-    printf("Nodetype == %s\n", nodeTypeToString(a->nodetype));
-    fflush(stdout);
-    eval(a->l);
-    eval(a->r);
+    
+    if(DEBUG) { printf("Nodetype == %s\n", nodeTypeToString(a->nodetype)); fflush(stdout); }
+    switch(a->nodetype)
+    {
+	case 0:		    	    
+	case INT_LITERAL:   
+	case FLT_LITERAL:   
+	case STR_LITERAL:   	    
+	case ID:	    	    
+	case ENDL:	    	    
+	case VAR_DEC:	    
+	case ARR_DEC:	    
+	case VAR_ACCESS:    
+	case ARR_ACCESS:    return;
+		    
+	case IF:	    
+	case WHILE:	    eval(((struct ctrl_node*)a)->c); 
+			    eval(((struct ctrl_node*)a)->t); 
+			    eval(((struct ctrl_node*)a)->f); 
+			    break; 
+	
+	case STREAMIN:	    
+	case STREAMOUT:
+	case ASSIGNOP:    
+	case RETURN:											    
+	default:	    eval(a->l);
+			    eval(a->r);
+    }
+    
 }
 
 char* nodeTypeToString(int nodetype)
@@ -36,8 +60,6 @@ char* nodeTypeToString(int nodetype)
 	case PROG:	    str = "PROG"; break;
 	case FUNC_DEF:	    str = "FUNC_DEF"; break;
 	case FUNC_DEFS:	    str = "FUNC_DEFS"; break;
-	case VAR_DEC:	    str = "VAR_DEC"; break;
-	case ARR_DEC:	    str = "ARR_DEC"; break;
 	case ID_LIST:	    str = "ID_LIST"; break;
 	case VAR_DEFS:	    str = "VAR_DEFS"; break;
 	case FUNC_HEAD:	    str = "FUNC_HEAD"; break;
@@ -48,8 +70,6 @@ char* nodeTypeToString(int nodetype)
 	case STMT:	    str = "STMT"; break;
 	case INPUT:	    str = "INPUT"; break;
 	case OUTPUT:	    str = "OUTPUT"; break;
-	case VAR_ACCESS:    str = "VAR_ACCESS"; break;
-	case ARR_ACCESS:    str = "ARR_ACCESS"; break;
 	case EXPRS:	    str = "EXPRS"; break;
 	case ADD_ASSIGN:    str = "ADD_ASSIGN"; break;
 	case SUB_ASSIGN:    str = "SUB_ASSIGN"; break;
@@ -86,6 +106,10 @@ char* nodeTypeToString(int nodetype)
 	case INT:	    str = "INT"; break;
 	case RETURN:	    str = "RETURN"; break;
 	case WHILE:	    str = "WHILE"; break;
+	case VAR_DEC:	    str = "VAR_DEC"; break;
+	case ARR_DEC:	    str = "ARR_DEC"; break;
+	case VAR_ACCESS:    str = "VAR_ACCESS"; break;
+	case ARR_ACCESS:    str = "ARR_ACCESS"; break;
 	default:	    str = "!!UNKNOWN!!";
     }
 

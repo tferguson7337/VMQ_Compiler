@@ -19,7 +19,7 @@ struct scope_stack_node* createNewScopeNode()
 void pushScope()
 {
     if(!SCOPE_STACK_HEAD) // Empty Stack
-	SCOPE_STACK_HEAD = createNewScopeNode();
+	GLOBAL_SCOPE = SCOPE_STACK_HEAD = createNewScopeNode();
     else
     {
 	struct scope_stack_node* temp = SCOPE_STACK_HEAD;

@@ -11,10 +11,14 @@ int main(int argc, char** argv)
     DEBUG = 0;
     for(int i = 1; i < argc; ++i)
     {
-	if(strcmp(argv[i], "-d"))
+	if(strcmp(argv[i], "-d") == 0)
+	{
 	    DEBUG = 1;
+	    printf("DEBUG MODE ENABLED\n");
+	    fflush(stdout);
+	}
     }
-
+    
     setSourceFile(argc, &argv, &yyin);
 
 //  Initialize various data structures.
