@@ -23,6 +23,8 @@ ${HDIR}/parser.tab.h:	${CDIR}/parser.y
 ${CDIR}/parser.tab.c:	${CDIR}/parser.y
 		bison -o ${CDIR}/parser.tab.c ${CDIR}/parser.y
 
+clean_all:	clean clean_q
+
 clean:
 		rm -f cVMQ ${CDIR}/lexer.c \
 		${CDIR}/parser.tab.c \

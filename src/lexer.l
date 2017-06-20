@@ -121,28 +121,15 @@ NEWLINE (\n)
 				yyerror("Variable redefinition");
 			    else
 				addToSymbolTable(&(SCOPE_STACK_HEAD->symTab), yytext);
-
-			    int isGlobal = 0;
-			    int isParam = 0;
-			    if(SCOPE_STACK_HEAD->isNewScope && SCOPE_STACK_HEAD != GLOBAL_SCOPE)
-				isParam = 1;
-
-			    if(GLOBAL_SCOPE == SCOPE_STACK_HEAD)
-			    {
-				isGlobal = 1;
-				if(definingInt)
-				    yylval.VAR_REF = appendToVarList(&GLOBAL_VAR_LIST_HEAD, INT, yytext, isGlobal, isParam)->pvr;
-				else
-				    yylval.VAR_REF = appendToVarList(&GLOBAL_VAR_LIST_HEAD, FLOAT, yytext, isGlobal, isParam)->pvr;
-			    }
+			    
+			    int data_type;
+			    if(definingInt)
+				data_type = INT;
 			    else
-			    {
-				if(definingInt)
-				    yylval.VAR_REF = appendToVarList(&(CURRENT_FUNC->var_list), INT, yytext, isGlobal, isParam)->pvr;
-				else
-				    yylval.VAR_REF = appendToVarList(&(CURRENT_FUNC->var_list), FLOAT, yytext, isGlobal, isParam)->pvr;
-			    }
+				data_type = FLOAT;
 
+			    yylval.VAR_REF = appendToVarList(data_type, yytext)->pvr;
+			    
 			    return ID;
 			}
 			else // Referencing variable (not defining)

@@ -87,16 +87,34 @@ struct str_list_node* appendToStrList(char* val)
     return temp;
 }
 
-struct var_list_node* appendToVarList(VAR_LIST* list, int var_type, char* var_name, int isGlobal, int isParam)
+struct var_list_node* appendToVarList(int var_type, char* var_name)
 {
-    if(!list) { yyerror("\n\tappendToVarList() - list arg given NULL addr\n"); exit(-1); }
-
-    struct var_list_node* temp = *list;
+    struct var_list_node* temp;
+    int isGlobal = 0;
+    int isParam = 0;
+    int size = 0;   // size of variable (where size > 1 is an array) is set by parser,
+		    // as determining size requires more data that is not immediately available to lexer.
+    
+    if(SCOPE_STACK_HEAD == GLOBAL_SCOPE)
+    {
+	temp = GLOBAL_VAR_LIST_HEAD;
+	isGlobal = 1;
+    }
+    else
+    {
+	temp = CURRENT_FUNC->var_list;
+	if(SCOPE_STACK_HEAD->isNewScope)
+	    isParam = 1;
+    }
 
     if(!temp)
     {
-	temp = *list = malloc(sizeof(struct var_list_node));
-	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, 0);
+	if(isGlobal)
+	    temp = GLOBAL_VAR_LIST_HEAD = malloc(sizeof(struct var_list_node));
+	else
+	    temp = CURRENT_FUNC->var_list = malloc(sizeof(struct var_list_node));
+
+	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->pvr = newVarRef(&pv);
 	temp->next = NULL;
     }
@@ -110,8 +128,30 @@ struct var_list_node* appendToVarList(VAR_LIST* list, int var_type, char* var_na
 		temp = temp->next;
 	}
 	temp = temp->next = malloc(sizeof(struct var_list_node));
-	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, 0);
+	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->pvr = newVarRef(&pv);
+	temp->next = NULL;
+    }
+
+    return temp;
+}
+
+struct VMQ_list_node* appendToVMQList(char* VMQ_line)
+{
+    if(!CURRENT_FUNC)
+	yyerror("appendToVMQList() - CURRENT_FUNC is NULL, cannot append VMQ statement");
+
+    struct VMQ_list_node* temp = CURRENT_FUNC->VMQ_list_tail;
+    if(!temp)
+    {
+	temp = CURRENT_FUNC->VMQ_list_head = CURRENT_FUNC->VMQ_list_tail = malloc(sizeof(struct VMQ_list_node));
+	temp->VMQ_line = strdup(VMQ_line);
+	temp->next = NULL;
+    }
+    else
+    {
+	temp = temp->next = malloc(sizeof(struct VMQ_list_node));
+	temp->VMQ_line = strdup(VMQ_line);
 	temp->next = NULL;
     }
 
