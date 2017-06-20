@@ -5,16 +5,17 @@
 
 struct scope_stack_node
 {
-	SYMBOL_TABLE symTab;
-	struct scope_stack_node* next;
+    SYMBOL_TABLE symTab;
+    struct scope_stack_node* next;
+    int isNewScope;
 };
 
 typedef struct scope_stack_node* SCOPE;
 
 struct scope_stack_node* createNewScope();
 
-void pushScope(SCOPE* stack_head);
+void pushScope();
 
-void popScope(SCOPE* stack_head);
+void popScope();
 
 #endif

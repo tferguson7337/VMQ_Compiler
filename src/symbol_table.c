@@ -17,14 +17,19 @@ int hash(char* str)
 
 void addToSymbolTable(SYMBOL_TABLE* symTab, char* symbol)
 {
-    int idx = hash(symbol);
+    int idx = hash(symbol);   
     struct symbol_node* symPtr = &((*symTab)[idx]);
-    while(symPtr->next)
-	symPtr = symPtr->next;
+    if(!(symPtr->next))
+	symPtr->symbol = strdup(symbol);
+    else
+    {
+	while(symPtr->next)
+	    symPtr = symPtr->next;
 
-    symPtr = symPtr->next = malloc(sizeof(struct symbol_node));
-    symPtr->symbol = strdup(symbol);
-    symPtr->next = NULL;
+	symPtr = symPtr->next = malloc(sizeof(struct symbol_node));
+	symPtr->symbol = strdup(symbol);
+	symPtr->next = NULL;
+    }
 }
 
 struct symbol_node* symbolTableLookup(char* symbol)
@@ -35,7 +40,7 @@ struct symbol_node* symbolTableLookup(char* symbol)
     {	// Search in scopePtr's symbol table (Hash Table), starting with deepest scope.
 	int idx = hash(symbol);
 	struct symbol_node* symPtr = &((scopePtr->symTab)[idx]);
-	while(symPtr)
+	while(symPtr && symPtr->symbol)
 	{
 	    if(strcmp(symPtr->symbol, symbol) == 0)
 		return symPtr;

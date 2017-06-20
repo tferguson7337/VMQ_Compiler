@@ -1,31 +1,38 @@
 #include <stdio.h>
 #include "helper_functions.h"
-// #include "parser.tab.h"
+#include <string.h>
 #include "fileIO.h"
 
 int main(int argc, char** argv)
 {
-	extern FILE* yyin;
-	extern int yyparse();
+    extern FILE* yyin;
+    extern int yyparse();
 
-	setSourceFile(argc, &argv, &yyin);
+    DEBUG = 0;
+    for(int i = 1; i < argc; ++i)
+    {
+	if(strcmp(argv[i], "-d"))
+	    DEBUG = 1;
+    }
 
-//	Initialize various data structures.
-	init();
+    setSourceFile(argc, &argv, &yyin);
 
-	yyparse();
+//  Initialize various data structures.
+    init();
+    
+    yyparse();
 
-	fclose(yyin);
+    fclose(yyin);
 
-//	eval(AST_root);
+//  eval(AST_root);
 
-	FILE* qFile;
+    FILE* qFile;
 
-	setDestFile(argv[getFileIndex(argc, &argv)], &qFile);
+    setDestFile(argv[getFileIndex(argc, &argv)], &qFile);
 
-//	populateVMQFile(&qFile);
+//  populateVMQFile(&qFile);
 
-	fclose(qFile);
+    fclose(qFile);
 
-	return 0;
+    return 0;
 }

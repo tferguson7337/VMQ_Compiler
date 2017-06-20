@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "error_handling.h"
+#include "helper_functions.h"
 #include "scope.h"
 
 struct scope_stack_node* createNewScopeNode()
@@ -10,36 +11,34 @@ struct scope_stack_node* createNewScopeNode()
 
 	pssn->symTab = createSymbolTable();
 	pssn->next = NULL;
+	pssn->isNewScope = 1;
 
 	return pssn;
 }
 
-void pushScope(SCOPE* stack_head)
+void pushScope()
 {
-	if(!stack_head) { yyerror("\n\tpushScope() - NULL stack_head addr!\n"); exit(-1); }
-
-	
-	if(!(*stack_head))	//	Empty Stack
-		*stack_head = createNewScopeNode();
-	else
-	{
-		struct scope_stack_node* temp = *stack_head;
-		*stack_head = createNewScopeNode();
-		(*stack_head)->next = temp;
-	}
+    if(!SCOPE_STACK_HEAD) // Empty Stack
+	SCOPE_STACK_HEAD = createNewScopeNode();
+    else
+    {
+	struct scope_stack_node* temp = SCOPE_STACK_HEAD;
+	SCOPE_STACK_HEAD = createNewScopeNode();
+	SCOPE_STACK_HEAD->next = temp;
+    }
 }
 
-void popScope(SCOPE* stack_head)
+void popScope()
 {
-	if(!stack_head)	{ yyerror("\n\tpopScope() - NULL stack_head addr!\n"); exit(-1); }
-	
-	if(!(*stack_head))	//	Empty Stack
-		return;
+    if(!SCOPE_STACK_HEAD) // Empty Stack
+	return;
 
-	struct scope_stack_node* temp = *stack_head;
+    struct scope_stack_node* temp = SCOPE_STACK_HEAD;
 
-	*stack_head = (*stack_head)->next;
+    SCOPE_STACK_HEAD = SCOPE_STACK_HEAD->next;
 
-	free(temp->symTab);
-	free(temp);
+    // Need to code in a function that will fully clean the symbol tables.
+    // Any symbol table entry that has had a collision will leak memory with this current approach.
+    free(temp->symTab);
+    free(temp);
 }

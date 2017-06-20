@@ -8,14 +8,15 @@
  * by the pattern-match code blocks below go here in here.
 */
 #include "helper_functions.h"
+#include "error_handling.h"
 #include "parser.tab.h"
 
 /* Var/Func Definition Flags */
 int definingInt = 0;
 int definingFlt = 0;
-int isParam = 0;
 
 char* relops[] = {"<", ">", "<=", ">=", "==", "!="};
+int line_count = 1;
 
 %}
 
@@ -68,63 +69,67 @@ NEWLINE (\n)
 
 %%
 
-{ASSIGNOP}	    { return ASSIGNOP; }
+{ASSIGNOP}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ASSIGNOP; }
 
-{MULOP}		    { if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; return MULOP; }
+{MULOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; return MULOP; }
 
-{ADDOP}		    { if(yytext[0] == '+') yylval.op_type = 1; else yylval.op_type = 2; return ADDOP; }
+{ADDOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(yytext[0] == '+') yylval.op_type = 1; else yylval.op_type = 2; return ADDOP; }
 
-{INCOP}		    { if(strcmp(yytext, "+=") == 0) yylval.op_type = 1; else yylval.op_type = 2; return INCOP; }
+{INCOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(strcmp(yytext, "+=") == 0) yylval.op_type = 1; else yylval.op_type = 2; return INCOP; }
 
-{RELOP}		    { yylval.op_type = 0; for(int idx = 0; idx < 6; ++idx) { ++(yylval.op_type); if(strcmp(yytext, relops[idx]) == 0) break; } return RELOP; }
+{RELOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  yylval.op_type = 0; for(int idx = 0; idx < 6; ++idx) { ++(yylval.op_type); if(strcmp(yytext, relops[idx]) == 0) break; } return RELOP; }
 
-{NOT}		    { return NOT; }
+{NOT}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return NOT; }
 
-{OR}		    { return OR; }
+{OR}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return OR; }
 
-{AND}	            { return AND; }
+{AND}	            { if(DEBUG) printf("%s", yytext); fflush(stdout);  return AND; }
 
-{FLT_LITERAL}	    { yylval.FLT_LIT = (appendToFltList(&FLT_LIST_HEAD, yytext))->pfl; return FLT_LITERAL; }
+{FLT_LITERAL}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  yylval.FLT_LIT = (appendToFltList(yytext))->pfl; return FLT_LITERAL; }
 
-{INT_LITERAL}	    { yylval.INT_LIT = (appendToIntList(&INT_LIST_HEAD, yytext))->pil; return INT_LITERAL; }
+{INT_LITERAL}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  yylval.INT_LIT = (appendToIntList(yytext))->pil; return INT_LITERAL; }
 
-{STR_LITERAL}	    { yylval.STR_LIT = (appendToStrList(&STR_LIST_HEAD, yytext))->psl; return STR_LITERAL; }
+{STR_LITERAL}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  yylval.STR_LIT = (appendToStrList(yytext))->psl; return STR_LITERAL; }
 
-{STREAMIN}	    { return STREAMIN; }
+{STREAMIN}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return STREAMIN; }
 
-{STREAMOUT}	    { return STREAMOUT; }
+{STREAMOUT}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return STREAMOUT; }
 
-{CIN}               { return CIN; }
+{CIN}               { if(DEBUG) printf("%s", yytext); fflush(stdout);  return CIN; }
 
-{COUT}              { return COUT; }
+{COUT}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return COUT; }
 
-{ELSE}              { return ELSE; }
+{ELSE}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ELSE; }
 
-{ENDL}              { return ENDL; }
+{ENDL}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ENDL; }
 
-{FLOAT}             { definingFlt = 1; return FLOAT; }
+{FLOAT}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingFlt = 1; return FLOAT; }
 
-{IF}                { return IF; }
+{IF}                { if(DEBUG) printf("%s", yytext); fflush(stdout);  return IF; }
 
-{INT}               { definingInt = 1; return INT; }
+{INT}               { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = 1; return INT; }
 
-{RETURN}            { return RETURN; }
+{RETURN}            { if(DEBUG) printf("%s", yytext); fflush(stdout);  return RETURN; }
 
-{WHILE}             { return WHILE; }
+{WHILE}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  return WHILE; }
 
 {ID}		    {
+			if(DEBUG) printf("%s", yytext); fflush(stdout);  
 			if(definingInt || definingFlt)
 			{
 			    if(symbolTableLookup(yytext))
 				yyerror("Variable redefinition");
 			    else
-				addToSymbolTable(&SCOPE_STACK_HEAD, yytext);
-			    
+				addToSymbolTable(&(SCOPE_STACK_HEAD->symTab), yytext);
+
 			    int isGlobal = 0;
+			    int isParam = 0;
+			    if(SCOPE_STACK_HEAD->isNewScope && SCOPE_STACK_HEAD != GLOBAL_SCOPE)
+				isParam = 1;
+
 			    if(GLOBAL_SCOPE == SCOPE_STACK_HEAD)
 			    {
 				isGlobal = 1;
-				isParam = 0;	// Function parameters should be zero (should be set to 0 anyway - just being safe).
 				if(definingInt)
 				    yylval.VAR_REF = appendToVarList(&GLOBAL_VAR_LIST_HEAD, INT, yytext, isGlobal, isParam)->pvr;
 				else
@@ -151,7 +156,7 @@ NEWLINE (\n)
 			    while(varListPtr)
 			    {
 				varPtr = varListPtr->pvr->val;
-				if(strcmp(varPtr, yytext) == 0)
+				if(strcmp(varPtr->var_name, yytext) == 0)
 				{
 				    yylval.VAR_REF = varListPtr->pvr;
 				    return ID;
@@ -163,7 +168,7 @@ NEWLINE (\n)
 			    while(varListPtr)
 			    {
 				varPtr = varListPtr->pvr->val;
-				if(strcmp(varPtr, yytext) == 0)
+				if(strcmp(varPtr->var_name, yytext) == 0)
 				{
 				    yylval.VAR_REF = varListPtr->pvr;
 				    return ID;
@@ -176,9 +181,10 @@ NEWLINE (\n)
 		    }
 
 {ID}/([ \t\v]*"(")  {	
+			if(DEBUG) printf("%s", yytext); fflush(stdout);  
 			if(definingInt || definingFlt)
 			{   // Function definition
-			    isParam = 1;
+			    pushScope();
 			}
 			else // Function call
 			{ 
@@ -188,23 +194,23 @@ NEWLINE (\n)
 			return ID; 
 		    }
 
-{O_PAREN}	    { return yytext[0]; }
-{C_PAREN} 	    { definingInt = definingFlt = isParam = 0; return yytext[0]; }
-{O_BRACK} 	    { return yytext[0]; }
-{C_BRACK} 	    { return yytext[0]; }
-{O_BRACE}	    { return yytext[0]; }
-{C_BRACE} 	    { return yytext[0]; }
-{END_STMT} 	    { definingInt = definingFlt = 0; return yytext[0]; }
-{COMMA}		    { return yytext[0]; }
+{O_PAREN}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  SCOPE_STACK_HEAD->isNewScope = 0; return yytext[0]; }
+{C_PAREN} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = definingFlt = 0; return yytext[0]; }
+{O_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{C_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{O_BRACE}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{C_BRACE} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{END_STMT} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = definingFlt = 0; return yytext[0]; }
+{COMMA}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 
 {LINE_CMNT} |
 {BLK_CMNT}  |
-{PRE_PROC}	    { /* Do nothing */  }
+{PRE_PROC}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  /* Do nothing */  }
 
-{NEWLINE}	    {   }
+{NEWLINE}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  }
 
-[ \t\v]+	    { /* Do nothing */  }
+[ \t\v]+	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  /* Do nothing */  }
 
-.		    { /* mystery character */ printf("\n\tMYSTERY CHAR %s\n", yytext); }
+.		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  /* mystery character */ printf("\n\tMYSTERY CHAR %s\n", yytext); fflush(stdout);  }
 
 %%

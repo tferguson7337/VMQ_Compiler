@@ -11,6 +11,8 @@
 
 enum { VMQ_INT_SIZE = 2, VMQ_FLT_SIZE = 4 };
 
+int DEBUG;
+
 /* Lists for tracking global VMQ memory-space elements */
 INT_LIST INT_LIST_HEAD;
 FLT_LIST FLT_LIST_HEAD;		    // All int/flt/str literals will be stored in VMQ global memory space.
