@@ -40,4 +40,6 @@ struct AST_node* AST_ROOT;
 /* Initializes global variables (see above) */
 void init();
 
+void eval(struct AST_node* a);
+
 #endif

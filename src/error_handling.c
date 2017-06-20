@@ -2,7 +2,7 @@
 
 void yyerror(char* str)
 {
-	printf("Error - %s\n", str);
+	printf("\n\nError - %s\n", str);
 
 	exit(-1);
 }

@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 
     fclose(yyin);
 
-//  eval(AST_root);
+    eval(AST_ROOT);
 
     FILE* qFile;
 

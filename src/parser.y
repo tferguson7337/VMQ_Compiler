@@ -2,12 +2,13 @@
 /* Code author: Thomas Ferguson */
 
 %{
-	#include "parser.tab.h"
-	#include "AST.h"
-	#include <stdio.h>
-	#include <stdlib.h>
-	int yylex();
-	int yyerror(char *);
+    #include "parser.tab.h"
+    #include "helper_functions.h"
+    #include "AST.h"
+    #include <stdio.h>
+    #include <stdlib.h>
+    int yylex();
+    int yyerror(char *);
 /*
  * Data structures, #include's, and other things needed
  * by the pattern-match code blocks below go here in here.
@@ -75,7 +76,7 @@
 
 %%
 
-program:		variable_definitions function_definitions		{ $$ = create_AST_node(PROG, $1, $2); }
+program:		variable_definitions function_definitions		{ $$ = AST_ROOT = create_AST_node(PROG, $1, $2); }
 ;
 
 function_definitions:	function_head block					{ $$ = create_AST_node(FUNC_DEF, $1, $2); }

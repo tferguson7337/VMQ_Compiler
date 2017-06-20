@@ -184,11 +184,34 @@ NEWLINE (\n)
 			if(DEBUG) printf("%s", yytext); fflush(stdout);  
 			if(definingInt || definingFlt)
 			{   // Function definition
+			    if(symbolTableLookup(yytext)) // This approach won't allow function overloading.
+				yyerror("Function name already taken (redefinition with equivalent ID)");
+			    else
+				addToSymbolTable(&(SCOPE_STACK_HEAD->symTab), yytext);
 			    pushScope();
+			    if(definingInt)
+				yylval.FUNC = appendToFuncList(INT, yytext);
+			    else
+				yylval.FUNC = appendToFuncList(FLOAT, yytext);
 			}
 			else // Function call
 			{ 
-			    
+			    if(!symbolTableLookup(yytext))
+				yyerror("Function name not found");
+
+			    struct func_list_node* funcPtr = FUNC_LIST_HEAD;
+			    while(funcPtr)
+			    {
+				if(strcmp(funcPtr->func_name, yytext) == 0)
+				{
+				    yylval.FUNC = funcPtr;
+				    break;
+				}
+				funcPtr = funcPtr->next;
+			    }
+
+			    if(!funcPtr)
+				yyerror("Function not found in function list!");
 			}
 
 			return ID; 
@@ -199,7 +222,7 @@ NEWLINE (\n)
 {O_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 {C_BRACK} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 {O_BRACE}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
-{C_BRACE} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
+{C_BRACE} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  popScope(); return yytext[0]; }
 {END_STMT} 	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingInt = definingFlt = 0; return yytext[0]; }
 {COMMA}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return yytext[0]; }
 
