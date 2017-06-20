@@ -42,4 +42,6 @@ void init();
 
 void eval(struct AST_node* a);
 
+char* nodeTypeToString(int nodetype);
+
 #endif

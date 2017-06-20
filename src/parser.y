@@ -89,7 +89,7 @@ identifier_list:	ID							{ $$ = create_var_node(VAR_DEC, $1); }
 		    |   identifier_list ',' ID '[' INT_LITERAL ']'		{ $$ = create_AST_node(ID_LIST, $1, create_AST_node(ARR_DEC, create_var_node(ID, $3), create_int_node(INT_LITERAL, $5))); }
 ;
 
-variable_definitions:	/* nothing */						{ $$ = NULL; }
+variable_definitions:	/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	variable_definitions type identifier_list ';'		{ $$ = create_AST_node(VAR_DEFS, $1, create_AST_node($2, $3, NULL)); }
 ;
 
@@ -103,7 +103,7 @@ function_head:		type ID arguments					{ $$ = create_AST_node(FUNC_HEAD, create_v
 arguments:		'(' parameter_list ')'					{ $$ = $2; }
 ;
 
-parameter_list:		/* nothing */						{ $$ = NULL; }
+parameter_list:		/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	parameters						{ $$ = create_AST_node(PARAM_LIST, $1, NULL); }
 ;
 
@@ -116,7 +116,7 @@ parameters:		type ID							{ $$ = create_var_node(ID, $2); }
 block:			'{' variable_definitions statements '}'			{ $$ = create_AST_node(BLOCK, $2, $3); }
 ;
 
-statements:		/* nothing */						{ $$ = NULL; }
+statements:		/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	statements statement					{ $$ = create_AST_node(STMTS, $1, $2); }
 ;
 
@@ -129,11 +129,11 @@ statement:		expression ';'						{ $$ = create_AST_node(STMT, $1, NULL); }
 		    |	output_statement ';'					{ $$ = create_AST_node(OUTPUT, $1, NULL); }
 ;
 
-input_statement:	CIN							{ $$ = NULL; }
+input_statement:	CIN							{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	input_statement STREAMIN variable			{ $$ = create_AST_node(STREAMIN, $1, $3); }
 ;
 
-output_statement:	COUT							{ $$ = NULL; }
+output_statement:	COUT							{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	output_statement STREAMOUT expression			{ $$ = create_AST_node(STREAMOUT, $1, $3); }
 		    |	output_statement STREAMOUT STR_LITERAL			{ $$ = create_AST_node(STREAMOUT, $1, create_str_node(STR_LITERAL, $3)); }
 		    |	output_statement STREAMOUT ENDL				{ $$ = create_AST_node(STREAMOUT, $1, create_str_node(ENDL, $3)); }
@@ -147,7 +147,7 @@ variable:		ID							{ $$ = create_var_node(VAR_ACCESS, $1); }
 		    |	ID '[' expression ']'					{ $$ = create_AST_node(ARR_ACCESS, create_var_node(ID, $1), $3); }
 ;
 
-expression_list:	/* nothing */						{ $$ = NULL; }
+expression_list:	/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }
 		    |	expressions						{ $$ = $1; }
 ;
 
