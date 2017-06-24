@@ -126,10 +126,10 @@ void dumpGlobalDataLists()
 	while(pFuncList)
 	{
 	    printf("%-15s\t(0x%llX)\n", pFuncList->func_name, (unsigned long long)pFuncList);
-	    printf("--> Dumping %s\'s vars:\n", pFuncList->func_name);
+	    printf("\t--> Dumping %s\'s vars:\n", pFuncList->func_name);
 	    pvln = pFuncList->var_list;
 	    if(!pvln)
-		printf("EMPTY\n");
+		printf("\tEMPTY\n");
 	    else
 		while(pvln)
 		{

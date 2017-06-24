@@ -101,7 +101,7 @@ NEWLINE (\n)
 
 {ELSE}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ELSE; }
 
-{ENDL}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ENDL; }
+{ENDL}              { if(DEBUG) printf("%s", yytext); fflush(stdout);  yylval.STR_LIT = (appendToStrList("\\n"))->psl; return ENDL; }
 
 {FLOAT}             { if(DEBUG) printf("%s", yytext); fflush(stdout);  definingFlt = 1; yylval.op_type = FLOAT; return FLOAT; }
 
