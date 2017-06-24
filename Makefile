@@ -9,9 +9,9 @@ cVMQ:	${CDIR}/lexer.c ${CDIR}/parser.tab.c \
 		${HDIR}/eval.h ${HDIR}/fileIO.h ${HDIR}/helper_functions.h ${HDIR}/parser.tab.h \
 		${HDIR}/scope.h ${HDIR}/symbol_table.h
 		cc -g -I ${CDIR} -I ${HDIR} -o $@ ${CDIR}/parser.tab.c ${CDIR}/lexer.c \
-		${CDIR}/main.c ${CDIR}/AST.c ${CDIR}/error_handling.c ${CDIR}/fileIO.c \
-		${CDIR}/data_lists.c ${CDIR}/data_rep.c ${CDIR}/helper_functions.c \
-		${CDIR}/scope.c ${CDIR}/symbol_table.c -lm
+		${CDIR}/main.c ${CDIR}/AST.c ${CDIR}/error_handling.c ${CDIR}/eval.c \
+		${CDIR}/fileIO.c ${CDIR}/data_lists.c ${CDIR}/data_rep.c \
+		${CDIR}/helper_functions.c ${CDIR}/scope.c ${CDIR}/symbol_table.c -lm
 
 ${CDIR}/lexer.c:	${CDIR}/lexer.l
 		flex -o ${CDIR}/lexer.c ${CDIR}/lexer.l

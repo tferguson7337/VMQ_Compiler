@@ -84,9 +84,11 @@ function_definitions:	function_head block					{ $$ = create_AST_node(FUNC_DEF, $
 ;
 
 identifier_list:	ID							{ $$ = create_var_node(VAR_DEC, $1); }
-		    |   ID '[' INT_LITERAL ']'					{ $$ = create_AST_node(ARR_DEC, create_var_node(ID, $1), create_int_node(INT_LITERAL, $3)); }
+		    |   ID '[' INT_LITERAL ']'					{ $$ = create_AST_node(ARR_DEC, create_var_node(ID, $1), create_int_node(INT_LITERAL, $3)); 
+										    $1->val->size = atoi($3->val); }
 		    |   identifier_list ',' ID					{ $$ = create_AST_node(ID_LIST, $1, create_var_node(VAR_DEC, $3)); }
-		    |   identifier_list ',' ID '[' INT_LITERAL ']'		{ $$ = create_AST_node(ID_LIST, $1, create_AST_node(ARR_DEC, create_var_node(ID, $3), create_int_node(INT_LITERAL, $5))); }
+		    |   identifier_list ',' ID '[' INT_LITERAL ']'		{ $$ = create_AST_node(ID_LIST, $1, create_AST_node(ARR_DEC, create_var_node(ID, $3), create_int_node(INT_LITERAL, $5)));
+										    $3->val->size = atoi($5->val); }
 ;
 
 variable_definitions:	/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }

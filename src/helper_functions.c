@@ -1,54 +1,147 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "helper_functions.h"
 #include "parser.tab.h"
 
 void init()
 {
-	INT_LIST_HEAD = NULL;
-	FLT_LIST_HEAD = NULL;
-	STR_LIST_HEAD = NULL;
-	GLOBAL_VAR_LIST_HEAD = NULL;
+    INT_LIST_HEAD = NULL;
+    FLT_LIST_HEAD = NULL;
+    STR_LIST_HEAD = NULL;
+    GLOBAL_VAR_LIST_HEAD = NULL;
 
-	FUNC_LIST_HEAD = CURRENT_FUNC = NULL;
+    FUNC_LIST_HEAD = CURRENT_FUNC = NULL;
 	
-	pushScope(&SCOPE_STACK_HEAD);
+    pushScope(&SCOPE_STACK_HEAD);
 
-	GLOBAL_SCOPE = SCOPE_STACK_HEAD;
+    GLOBAL_SCOPE = SCOPE_STACK_HEAD;
+
+    DEBUG = FLEX_DEBUG = BISON_DEBUG = 0;
+
+    // Add 0 and 1 to global VMQ space to represent TRUE and FALSE.
+    appendToIntList("0"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "0");
+    appendToIntList("1"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "1");
 }
 
-void eval(struct AST_node* a)
+void setDebugFlags(int argc, char*** argv)
 {
-    if(!a) return;
-    
-    if(DEBUG) { printf("Nodetype == %s\n", nodeTypeToString(a->nodetype)); fflush(stdout); }
-    switch(a->nodetype)
+    for(int i = 1; i < argc; ++i)
     {
-	case 0:		    	    
-	case INT_LITERAL:   
-	case FLT_LITERAL:   
-	case STR_LITERAL:   	    
-	case ID:	    	    
-	case ENDL:	    	    
-	case VAR_DEC:	    
-	case ARR_DEC:	    
-	case VAR_ACCESS:    
-	case ARR_ACCESS:    return;
-		    
-	case IF:	    
-	case WHILE:	    eval(((struct ctrl_node*)a)->c); 
-			    eval(((struct ctrl_node*)a)->t); 
-			    eval(((struct ctrl_node*)a)->f); 
-			    break; 
-	
-	case STREAMIN:	    
-	case STREAMOUT:
-	case ASSIGNOP:    
-	case RETURN:											    
-	default:	    eval(a->l);
-			    eval(a->r);
+	if(strcmp((*argv)[i], "-d") == 0)
+	{
+	    DEBUG = 1;
+	    printf("DEBUG MODE ENABLED\n");
+	    fflush(stdout);
+	}
+	else if(strcmp((*argv)[i], "-ld") == 0)
+	{
+	    FLEX_DEBUG = 1;
+	    printf("LEXER DEBUG MODE ENABLED\n");
+	    fflush(stdout);
+	}
+	else if(strcmp((*argv)[i], "-bd") == 0)
+	{
+	    BISON_DEBUG = 1;
+	    printf("PARSER DEBUG MODE ENABLED\n");
+	    fflush(stdout);
+	}
     }
+}
+
+void dumpGlobalDataLists()
+{
+    printf("==========================\n");
+    printf("Dumping LITERAL FLOAT list\n");
+    printf("==========================\n\n");
+
+    struct flt_list_node* pfln = FLT_LIST_HEAD;
+
+    if(!pfln)
+	printf("EMPTY\n");
+    else
+	while(pfln)
+	{
+	    printf("%-15s\t(0x%llX)\n", pfln->pfl->val, (unsigned long long)pfln);
+	    pfln = pfln->next;
+	}
     
+    printf("==========================\n");
+    printf("Dumping LITERAL INT list\n");
+    printf("==========================\n\n");
+
+    struct int_list_node* piln = INT_LIST_HEAD;
+
+    if(!piln)
+	printf("EMPTY\n");
+    else
+	while(piln)
+	{
+	    printf("%-15s\t(0x%llX)\n", piln->pil->val, (unsigned long long)piln);
+	    piln = piln->next;
+	}
+
+    printf("==========================\n");
+    printf("Dumping LITERAL STR list\n");
+    printf("==========================\n\n");
+    
+    struct str_list_node* psln = STR_LIST_HEAD;
+    
+    if(!psln)
+	printf("EMPTY\n");
+    else
+	while(psln)
+	{
+	    printf("%-30s\t(0x%llX)\n", psln->psl->val, (unsigned long long)psln);
+	    psln = psln->next;
+	}
+
+    printf("==========================\n");
+    printf("Dumping GLOBAL VAR list\n");
+    printf("==========================\n\n");
+
+    struct var_list_node* pvln = GLOBAL_VAR_LIST_HEAD;
+
+    if(!pvln)
+	printf("EMPTY\n");
+    else
+	while(pvln)
+	{
+	    printf("%-15s\t", pvln->pvr->val->var_name);
+	    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));
+	    printf("%-3d\t", pvln->pvr->val->size);
+	    printf("(0x%llX)\n", (unsigned long long)pvln);
+	    pvln = pvln->next;
+	}
+    
+    printf("==========================\n");
+    printf("Dumping FUNC LIST\n");
+    printf("==========================\n\n");
+
+    struct func_list_node* pFuncList = FUNC_LIST_HEAD;
+
+    if(!pFuncList)
+	printf("EMPTY\n");
+    else
+	while(pFuncList)
+	{
+	    printf("%-15s\t(0x%llX)\n", pFuncList->func_name, (unsigned long long)pFuncList);
+	    printf("--> Dumping %s\'s vars:\n", pFuncList->func_name);
+	    pvln = pFuncList->var_list;
+	    if(!pvln)
+		printf("EMPTY\n");
+	    else
+		while(pvln)
+		{
+		    printf("\t%-15s\t", pvln->pvr->val->var_name);
+		    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));
+		    printf("%-3d\t", pvln->pvr->val->size);
+		    printf("(0x%llX)\n", (unsigned long long)pvln);
+		    pvln = pvln->next;
+		}
+	    pFuncList = pFuncList->next;
+	}
+    printf("==========================\n\n"); fflush(stdout);
 }
 
 char* nodeTypeToString(int nodetype)
@@ -85,7 +178,7 @@ char* nodeTypeToString(int nodetype)
 	case GTE:	    str = "GTE"; break;
 	case EQ:	    str = "EQ"; break;
 	case NEQ:	    str = "NEQ"; break;
-	/* "Terminal" tokens */
+	/* "Terminal"/keyword tokens */
 	case 0:		    str = "NULL(0)"; break;
 	case ASSIGNOP:	    str = "ASSIGNOP"; break;
 	case ADDOP:	    str = "ADDOP"; break;

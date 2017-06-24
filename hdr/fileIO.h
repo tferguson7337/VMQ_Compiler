@@ -9,4 +9,6 @@ void setSourceFile(int count, char*** args, FILE** fp);
 
 void setDestFile(char* src_file_name, FILE** fp);
 
+void populateVMQFile(FILE** fp);
+
 #endif

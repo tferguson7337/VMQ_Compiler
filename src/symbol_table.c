@@ -52,7 +52,7 @@ struct symbol_node* symbolTableLookup(char* symbol)
     }
 
     // Symbol not found.
-    return (struct symbol_node*)NULL;
+    return NULL;
 }
 
 SYMBOL_TABLE createSymbolTable()

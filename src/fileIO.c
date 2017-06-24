@@ -46,28 +46,33 @@ void setSourceFile(int count, char*** args, FILE** fp)
 /* Creates new .q file in same directory as compiler, file name (excluding extension) will match the source file */
 void setDestFile(char* src_file_name, FILE** fp)
 {
-	if(!fp)
-        yyerror("setSourceFile - File pointer is NULL\n");
+    if(!fp)
+	yyerror("setSourceFile - File pointer is NULL\n");
 	
-	int len = strlen(src_file_name);
+    int len = strlen(src_file_name);
 
-/*	If source file is in different directory than compiler, we need to discard directory stuff from src_file_name */
-	int idx;
-	for(idx = len - 1; idx > 0; --idx)
-	{
-		if(src_file_name[idx - 1] == '/')
-			break;
-	}
+/*  If source file is in different directory than compiler, we need to discard directory stuff from src_file_name */
+    int idx;
+    for(idx = len - 1; idx > 0; --idx)
+    {
+	if(src_file_name[idx - 1] == '/')
+	    break;
+    }
 
-	char* dest_file_name = &(src_file_name[idx]);
+    char* dest_file_name = &(src_file_name[idx]);
 
-	len = strlen(dest_file_name);
+    len = strlen(dest_file_name);
 
-	dest_file_name[len-3] = 'q';
-	dest_file_name[len-2] = '\0';
+    dest_file_name[len-3] = 'q';
+    dest_file_name[len-2] = '\0';
 
-	(*fp) = fopen(dest_file_name, "w");
+    (*fp) = fopen(dest_file_name, "w");
 
-	if(!(*fp))
-		yyerror("File open procedure failed\n");
+    if(!(*fp))
+	yyerror("File open procedure failed\n");
+}
+
+void populateVMQFile(FILE** fp)
+{
+    
 }

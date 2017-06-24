@@ -1,32 +1,25 @@
 #include <stdio.h>
-#include "helper_functions.h"
 #include <string.h>
+#include "eval.h"
 #include "fileIO.h"
+#include "helper_functions.h"
 
 int main(int argc, char** argv)
 {
     extern FILE* yyin;
     extern int yyparse();
-
-    DEBUG = 0;
-    for(int i = 1; i < argc; ++i)
-    {
-	if(strcmp(argv[i], "-d") == 0)
-	{
-	    DEBUG = 1;
-	    printf("DEBUG MODE ENABLED\n");
-	    fflush(stdout);
-	}
-    }
     
-    setSourceFile(argc, &argv, &yyin);
-
 //  Initialize various data structures.
     init();
-    
-    yyparse();
 
+    setSourceFile(argc, &argv, &yyin);
+
+    setDebugFlags(argc, &argv);
+
+    yyparse();
     fclose(yyin);
+
+    if(DEBUG) dumpGlobalDataLists();
 
     eval(AST_ROOT);
 
@@ -34,7 +27,7 @@ int main(int argc, char** argv)
 
     setDestFile(argv[getFileIndex(argc, &argv)], &qFile);
 
-//  populateVMQFile(&qFile);
+    populateVMQFile(&qFile);
 
     fclose(qFile);
 

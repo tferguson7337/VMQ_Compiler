@@ -12,6 +12,8 @@
 enum { VMQ_INT_SIZE = 2, VMQ_FLT_SIZE = 4 };
 
 int DEBUG;
+int FLEX_DEBUG;
+int BISON_DEBUG;
 
 /* Lists for tracking global VMQ memory-space elements */
 INT_LIST INT_LIST_HEAD;
@@ -40,7 +42,9 @@ struct AST_node* AST_ROOT;
 /* Initializes global variables (see above) */
 void init();
 
-void eval(struct AST_node* a);
+void setDebugFlags(int argc, char*** argv);
+
+void dumpGlobalDataLists();
 
 char* nodeTypeToString(int nodetype);
 

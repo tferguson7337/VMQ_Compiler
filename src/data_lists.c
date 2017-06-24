@@ -17,14 +17,17 @@ struct int_list_node* appendToIntList(char* val)
     }
     else
     {
-        while(temp->next)
+        while(temp)
 	{
 	    if(strcmp(val, temp->pil->val) == 0)
 		return temp;
-	    else
-		temp = temp->next;
+
+	    if(!temp->next)
+		break;
+
+	    temp = temp->next;
 	}
-        temp = temp->next = malloc(sizeof(struct int_list_node));
+	temp = temp->next = malloc(sizeof(struct int_list_node));
         temp->pil= newIntLit(val);
         temp->next = NULL;
     }
@@ -44,12 +47,15 @@ struct flt_list_node* appendToFltList(char* val)
     }
     else
     {
-        while(temp->next)
+        while(temp)
 	{
 	    if(strcmp(val, temp->pfl->val) == 0)
 		return temp;
-	    else
-		temp = temp->next;
+	    
+	    if(!temp->next)
+		break;
+
+	    temp = temp->next;
 	}
 
         temp = temp->next = malloc(sizeof(struct flt_list_node));
@@ -72,12 +78,15 @@ struct str_list_node* appendToStrList(char* val)
     }
     else
     {
-        while(temp->next)
+        while(temp)
 	{
 	    if(strcmp(val, temp->psl->val) == 0)
 		return temp;
-	    else
-		temp = temp->next;
+	    
+	    if(!temp->next)
+		break;
+	
+	    temp = temp->next;
 	}
         temp = temp->next = malloc(sizeof(struct str_list_node));
         temp->psl = newStrLit(val);
@@ -92,7 +101,7 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
     struct var_list_node* temp;
     int isGlobal = 0;
     int isParam = 0;
-    int size = 0;   // size of variable (where size > 1 is an array) is set by parser,
+    int size = 1;   // size of variable (where size > 1 is an array) is set by parser if var is an array,
 		    // as determining size requires more data that is not immediately available to lexer.
     
     if(SCOPE_STACK_HEAD == GLOBAL_SCOPE)
@@ -120,12 +129,15 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
     }
     else
     {
-	while(temp->next)
+	while(temp)
 	{
 	    if(strcmp(var_name, temp->pvr->val->var_name) == 0)
 		return temp;
-	    else
-		temp = temp->next;
+	    
+	    if(!temp->next)
+		break;
+
+	    temp = temp->next;
 	}
 	temp = temp->next = malloc(sizeof(struct var_list_node));
 	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
