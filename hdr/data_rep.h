@@ -10,35 +10,35 @@
 
 struct intlit
 {
-	unsigned int VMQ_loc;
-	char* val;
+    unsigned int VMQ_loc;
+    char* val;
 };
 
 struct fltlit
 {
-	unsigned int VMQ_loc; 
-	char* val;
+    unsigned int VMQ_loc; 
+    char* val;
 };
 
 struct strlit
 {
-	unsigned int VMQ_loc;
-	char* val;
+    unsigned int VMQ_loc;
+    char* val;
 };
 
 struct var
 {
     unsigned int var_type;	// INT or FLOAT
-	char* var_name;
+    char* var_name;
     int isGlobal;	
-	int isParam;
+    int isParam;
     unsigned int size;      // if (size > 1), var is an array
 };
 
 struct varref
 {
-	unsigned int VMQ_loc;
-	struct var* val;
+    unsigned int VMQ_loc;
+    struct var* val;
 };
 
 struct intlit* newIntLit(char* val);

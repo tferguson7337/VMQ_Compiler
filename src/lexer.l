@@ -151,7 +151,7 @@ NEWLINE (\n)
 				varListPtr = varListPtr->next;
 			    }
 
-			    varListPtr = CURRENT_FUNC->var_list;
+			    varListPtr = CURRENT_FUNC->var_list_head;
 			    while(varListPtr)
 			    {
 				varPtr = varListPtr->pvr->val;

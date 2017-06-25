@@ -17,9 +17,13 @@ int BISON_DEBUG;
 
 /* Lists for tracking global VMQ memory-space elements */
 INT_LIST INT_LIST_HEAD;
+INT_LIST INT_LIST_TAIL;
 FLT_LIST FLT_LIST_HEAD;		    // All int/flt/str literals will be stored in VMQ global memory space.
+FLT_LIST FLT_LIST_TAIL;
 STR_LIST STR_LIST_HEAD;
+STR_LIST STR_LIST_TAIL;
 VAR_LIST GLOBAL_VAR_LIST_HEAD;	    // All variables in C++ global scope will be stored in VMQ global memory space.
+VAR_LIST GLOBAL_VAR_LIST_TAIL;
 
 /* List for tracking functions as they are encountered in src file */
 FUNC_LIST FUNC_LIST_HEAD;

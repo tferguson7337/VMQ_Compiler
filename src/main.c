@@ -21,6 +21,7 @@ int main(int argc, char** argv)
 
     if(DEBUG) dumpGlobalDataLists();
 
+    CURRENT_FUNC = FUNC_LIST_HEAD;
     eval(AST_ROOT);
 
     FILE* qFile;
