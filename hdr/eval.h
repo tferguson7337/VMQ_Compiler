@@ -7,6 +7,14 @@
 void eval(struct AST_node* a);
 
 // Other helper functions to eval will eventually be added.
-
+void evalReturnStatement(struct AST_node* a);
+void evalIfStatement(struct AST_node* a);
+void evalWhileStatement(struct AST_node* a);
+void evalInputStatement(struct AST_node* a);
+void evalOutputStatement(struct AST_node* a);
+void evalAssignOpStatement(struct AST_node* a);
+void evalIncOpStatement(struct AST_node* a);
+void evalAddOpStatement(struct AST_node* a);
+void evalMulOpStatement(struct AST_node* a);
 
 #endif
