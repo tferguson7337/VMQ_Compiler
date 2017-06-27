@@ -8,8 +8,7 @@ int main(int argc, char** argv)
 {
     extern FILE* yyin;
     extern int yyparse();
-    
-//  Initialize various data structures.
+
     init();
 
     setSourceFile(argc, &argv, &yyin);
@@ -19,17 +18,18 @@ int main(int argc, char** argv)
     yyparse();
     fclose(yyin);
 
-    if(DEBUG) dumpGlobalDataLists();
+    configureGlobalMemorySpace();
+    configureLocalMemorySpaces();
 
-    CURRENT_FUNC = FUNC_LIST_HEAD;
+    if(DEBUG) 
+	dumpGlobalDataLists();
+
     eval(AST_ROOT);
 
     FILE* qFile;
-
     setDestFile(argv[getFileIndex(argc, &argv)], &qFile);
 
     populateVMQFile(&qFile);
-
     fclose(qFile);
 
     return 0;

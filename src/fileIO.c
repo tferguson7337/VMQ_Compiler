@@ -1,6 +1,7 @@
 #include "fileIO.h"
 #include "error_handling.h"
 #include "helper_functions.h"
+#include "parser.tab.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -75,58 +76,83 @@ void setDestFile(char* src_file_name, FILE** fp)
 
 void populateVMQFile(FILE** fp)
 {
-/*
-*   VMQ Global Memory Layout
-*
-*   000 0	    ; Integer of value 0, stored at addr 000, represents FALSE
-*   002 1	    ; Integer of value 1, stored at addr 002, represents TRUE
-*   004 <flt_val>   ; Literal float values will be stored after initial TRUE and FALSE
-*   006 <int_val>   ; Literal integer values will be stored after float values
-*   008 <str_val>   ; Literal string values will be stored after integer values
-*
-*   Per VMQ Specifications...
-*
-*   Literal float values take up 32-bits (4 bytes), and must be aligned on a memory addr that is evenly divisible by 4.
-*   Literal integer values take up 16-bits (2 bytes), and must be aligned on a memory addr that is evenly divisible by 2.
-*   Literal strings values are null-terminated, and have no restrictions on memory addr alignment.
-*   This particular layout optimizes VMQ global memory allocation, so that no memory padding (i.e., wasting memory) is needed
-*/  
-    fprintf(*fp, "000 0\n");
-    fprintf(*fp, "002 1\n");
-    
-    int VMQ_mem_addr = 4;
-    struct flt_list_node* pfln = FLT_LIST_HEAD;
+    struct VMQ_mem_node* pvmn = VMQ_MEM_LIST_HEAD;
 
-    while(pfln)
+    struct intlit* pil = NULL;
+    struct fltlit* pfl = NULL;
+    struct strlit* psl = NULL;
+    struct varref* pvr = NULL;
+    while(pvmn)
     {
-	fprintf(*fp, "%03d %s\n", VMQ_mem_addr, pfln->pfl->val);
-	VMQ_mem_addr += 4;
-	pfln = pfln->next;
+	pil = NULL; pfl = NULL; psl = NULL; pvr = NULL;
+	switch(pvmn->nodetype)
+	{
+	    case INT_LITERAL:	pil = ((struct int_list_node*)pvmn->node)->pil;
+				fprintf(*fp, "%03d\t%s\n", pil->VMQ_loc, pil->val);
+				break;
+
+	    case FLT_LITERAL:	pfl = ((struct flt_list_node*)pvmn->node)->pfl;
+				fprintf(*fp, "%03d\t%s\n", pfl->VMQ_loc, pfl->val);
+				break;
+
+	    case STR_LITERAL:	psl = ((struct str_list_node*)pvmn->node)->psl;
+				if(strcmp(psl->val, "\\n") == 0)
+				    fprintf(*fp, "%03d\t\"\\n\"\n", psl->VMQ_loc);
+				else
+				    fprintf(*fp, "%03d\t%s\n", psl->VMQ_loc, psl->val);
+				break;
+
+	    case INT:
+	    case FLOAT:		pvr = ((struct var_list_node*)pvmn->node)->pvr;
+				break;
+	}
+
+	pvmn = pvmn->next;
     }
 
-    struct int_list_node* piln = INT_LIST_HEAD;
+    unsigned int globalMemSize = 0;
 
-    while(piln)
-    {
-	fprintf(*fp, "%03d %s\n", VMQ_mem_addr, piln->pil->val);
-	VMQ_mem_addr += 2;
-	piln = piln->next;
-    }
-
-    struct str_list_node* psln = STR_LIST_HEAD;
-
-    while(psln)
-    {
-	char* str = psln->psl->val;
-	if(strcmp(str, "\\n") == 0)
-	    fprintf(*fp, "%03d \"%s\"\n", VMQ_mem_addr, str);
+    if(pil)	    // if(pil), pil points to last value in global memory (INT_LITERAL)
+	globalMemSize = pil->VMQ_loc + VMQ_INT_SIZE;
+    else if(pfl)    // if(pfl), pfl points to last value in global memory (FLT_LITERAL)
+	globalMemSize = pfl->VMQ_loc + VMQ_FLT_SIZE;
+    else if(psl)    // if(psl), psl points to last value in global memory (STR_LITERAL)
+	if(strcmp(psl->val, "\\n") == 0)
+	    globalMemSize = psl->VMQ_loc + 2;
 	else
-	    fprintf(*fp, "%03d %s\n", VMQ_mem_addr, str);
-	if(strcmp(str, "\\n") == 0)
-	    VMQ_mem_addr += 2;
+	    globalMemSize = psl->VMQ_loc + strlen(psl->val) - 1;
+    else	    // if(pvr), pvr points to last value in global memory (INT or FLOAT variable)
+	if(pvr->val->var_type == INT)
+	    globalMemSize = pvr->VMQ_loc + (VMQ_INT_SIZE * pvr->val->size);
 	else
-	    VMQ_mem_addr += strlen(str) - 1;
-	psln = psln->next;
+	    globalMemSize = pvr->VMQ_loc + (VMQ_FLT_SIZE * pvr->val->size);
+
+    // Find main
+    unsigned int start_line = 1;
+    CURRENT_FUNC = FUNC_LIST_HEAD;
+    while(CURRENT_FUNC)
+    {
+	if(strcmp(CURRENT_FUNC->func_name, "main") == 0)
+	{
+	    start_line = CURRENT_FUNC->VMQ_data.quad_start_line;
+	    CURRENT_FUNC = FUNC_LIST_HEAD;
+	    break;
+	}
+	
+	CURRENT_FUNC = CURRENT_FUNC->next;
     }
-    
+
+    fprintf(*fp, "$ %d %d\n", start_line, globalMemSize);
+
+    while(CURRENT_FUNC)
+    {
+	struct VMQ_list_node* pvln = CURRENT_FUNC->VMQ_data.stmt_list_head;
+	while(pvln)
+	{
+	    fprintf(*fp, "%s\n", pvln->VMQ_line);
+	    pvln = pvln->next;
+	}
+
+	CURRENT_FUNC = CURRENT_FUNC->next;
+    }
 }

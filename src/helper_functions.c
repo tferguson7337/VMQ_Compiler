@@ -6,10 +6,11 @@
 
 void init()
 {
-    INT_LIST_HEAD = NULL;
-    FLT_LIST_HEAD = NULL;
-    STR_LIST_HEAD = NULL;
-    GLOBAL_VAR_LIST_HEAD = NULL;
+    INT_LIST_HEAD = INT_LIST_TAIL = NULL;
+    FLT_LIST_HEAD = FLT_LIST_TAIL = NULL;
+    STR_LIST_HEAD = STR_LIST_TAIL = NULL;
+    GLOBAL_VAR_LIST_HEAD = GLOBAL_VAR_LIST_TAIL = NULL;
+    VMQ_MEM_LIST_HEAD = VMQ_MEM_LIST_TAIL = NULL;
 
     FUNC_LIST_HEAD = CURRENT_FUNC = NULL;
 	
@@ -22,6 +23,205 @@ void init()
     // Add 0 and 1 to global VMQ space to represent TRUE and FALSE.
     appendToIntList("0"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "0");
     appendToIntList("1"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "1");
+}
+
+void configureGlobalMemorySpace()
+{
+    /*
+*   VMQ Global Memory Layout
+*
+*   000 0	    ; Literal integer of value 0, stored at addr 000, represents FALSE
+*   002 1	    ; Literal integer of value 1, stored at addr 002, represents TRUE
+*   004 <flt_val>   ; Literal float values will be stored after initial TRUE and FALSE
+*   008 <flt_var>   ; Space for any float variables comes after literal floats
+*   012 <int_val>   ; Literal integer values will be stored after float values
+*   014 <int_var>   ; Space for any integer variables comes after literal integers
+*   016 <str_val>   ; Literal string values will be stored after integer values
+*
+*   Per VMQ Specifications...
+*
+*   Literal float values take up 32-bits (4 bytes), and must be aligned on a memory addr that is evenly divisible by 4.
+*   Literal integer values take up 16-bits (2 bytes), and must be aligned on a memory addr that is evenly divisible by 2.
+*   Literal strings values are null-terminated, and have no restrictions on memory addr alignment.
+*   This particular layout optimizes VMQ global memory allocation, so that no memory padding (i.e., wasting memory) is needed
+    */
+
+    if(DEBUG) { printf("CONFIGURING GLOBAL MEMORY SPACE..."); fflush(stdout); }
+
+    // Literal ints 0 and 1 will always be in the int list - set their addrs first.
+    INT_LIST_HEAD->pil->VMQ_loc = 0;	    appendToVMQMemList(INT_LITERAL, INT_LIST_HEAD);
+    INT_LIST_HEAD->next->pil->VMQ_loc = 2;  appendToVMQMemList(INT_LITERAL, INT_LIST_HEAD->next);
+    
+    unsigned int mem_addr = 4;
+
+    // Literal floats come next.
+    struct flt_list_node* pfln = FLT_LIST_HEAD;
+    while(pfln)
+    {
+	pfln->pfl->VMQ_loc = mem_addr;
+	appendToVMQMemList(FLT_LITERAL, pfln);
+	mem_addr += VMQ_FLT_SIZE;
+	pfln = pfln->next;
+    }
+
+    // Scan global var list for float vars, setting their VMQ_loc values.
+   /* 
+    *	Note that variables are merely allocated space in global memory and will not
+    *	appear as literals do in the initial data list at the beginning of each VMQ file
+    */
+    struct var_list_node* pvln = GLOBAL_VAR_LIST_HEAD;
+    while(pvln)
+    {
+	if(pvln->pvr->val->var_type == FLOAT)
+	{
+	    pvln->pvr->VMQ_loc = mem_addr;
+	    mem_addr += VMQ_FLT_SIZE * pvln->pvr->val->size;
+	}
+	pvln = pvln->next;
+    }
+
+    // Literal integers come next - recall that first two list elements were already handled.
+    struct int_list_node* piln = INT_LIST_HEAD->next->next;
+    while(piln)
+    {
+	piln->pil->VMQ_loc = mem_addr;
+	appendToVMQMemList(INT_LITERAL, piln);
+	mem_addr += VMQ_INT_SIZE;
+	piln = piln->next;
+    }
+
+    // Rescan global var list for int vars; set their VMQ_loc values.
+    pvln = GLOBAL_VAR_LIST_HEAD;
+    while(pvln)
+    {
+	if(pvln->pvr->val->var_type == INT)
+	{
+	    pvln->pvr->VMQ_loc = mem_addr;
+	    mem_addr += VMQ_INT_SIZE * pvln->pvr->val->size;
+	}
+
+	pvln = pvln->next;
+    }
+
+    // Literal strings come next
+    struct str_list_node* psln = STR_LIST_HEAD;
+    while(psln)
+    {
+	psln->psl->VMQ_loc = mem_addr;
+	appendToVMQMemList(STR_LITERAL, psln);
+	if(strcmp(psln->psl->val, "\\n") == 0)
+	    mem_addr += 2;
+	else
+	    mem_addr += strlen(psln->psl->val) - 1;
+	psln = psln->next;
+    }
+
+    if(DEBUG) { printf("DONE!\n"); fflush(stdout); } 
+}
+
+void configureLocalMemorySpaces()
+{
+    CURRENT_FUNC = FUNC_LIST_HEAD;
+
+    while(CURRENT_FUNC)
+    {
+	if(!CURRENT_FUNC->var_list_head)
+	{
+	    CURRENT_FUNC = CURRENT_FUNC->next;
+	    continue;
+	}
+
+	struct var_list_node* list_ptr = CURRENT_FUNC->var_list_head;
+	struct var_list_node* prev_node = NULL;
+	struct varref* vref = NULL;
+	struct var* v = NULL;
+
+	// Traverse list, find first INT var or array of odd size - set VMQ_loc to 2;
+	while(list_ptr)
+	{
+	    vref = list_ptr->pvr;
+	    v = vref->val;
+	    if(v->var_type == INT && v->size % 2)
+	    {
+		vref->VMQ_loc = 2;
+		prev_node = list_ptr;
+		break;
+	    }
+
+	    list_ptr = list_ptr->next;
+	}
+
+	if(!prev_node)
+	{
+	    // Function contains no INT vars or INT arrays of odd size.
+	    // Memory cannot be ideally packed - just traverse the list
+	    // and set VMQ_locs simply.
+
+	    // Do the first variable so we can use prev_node in the loop
+	    list_ptr = CURRENT_FUNC->var_list_head;
+	    list_ptr->pvr->VMQ_loc = 2;
+	    prev_node = list_ptr;
+	    list_ptr = list_ptr->next;
+
+	    while(list_ptr)
+	    {
+		vref = prev_node->pvr;
+		v = vref->val;
+		if(v->var_type == INT)
+		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+		else
+		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+
+		prev_node = list_ptr;
+		list_ptr = list_ptr->next;
+	    }
+	    
+	}
+	else
+	{
+	    // Scan for floats, set their VMQ_locs first.
+	    list_ptr = CURRENT_FUNC->var_list_head;
+	    while(list_ptr)
+	    {
+		vref = prev_node->pvr;
+		v = vref->val;
+		
+		if(list_ptr->pvr->val->var_type == FLOAT)
+		{
+		    if(v->var_type == INT)
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+		    else
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+
+		    prev_node = list_ptr;
+		}
+
+		list_ptr = list_ptr->next;
+	    }
+
+	    // Now scan for ints and set their VMQ_locs
+	    list_ptr = CURRENT_FUNC->var_list_head;
+	    while(list_ptr)
+	    {
+		vref = prev_node->pvr;
+		v = vref->val;
+
+		if(list_ptr->pvr->val->var_type == INT)
+		{
+		    if(v->var_type == INT)
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+		    else
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+
+		    prev_node = list_ptr;
+		}
+
+		list_ptr = list_ptr->next;
+	    }   
+	}
+
+	CURRENT_FUNC = CURRENT_FUNC->next;
+    }
 }
 
 void setDebugFlags(int argc, char*** argv)
@@ -92,7 +292,10 @@ void dumpGlobalDataLists()
     else
 	while(psln)
 	{
-	    printf("%-30s\t(0x%llX)\n", psln->psl->val, (unsigned long long)psln);
+	    if(strcmp(psln->psl->val, "\\n") == 0)
+		printf("%-30s\t(0x%llX)\n", "\"\\n\"", (unsigned long long)psln);
+	    else
+		printf("%-30s\t(0x%llX)\n", psln->psl->val, (unsigned long long)psln);
 	    psln = psln->next;
 	}
 
@@ -141,7 +344,40 @@ void dumpGlobalDataLists()
 		}
 	    pFuncList = pFuncList->next;
 	}
-    printf("==========================\n\n"); fflush(stdout);
+
+    printf("==========================\n");
+    printf("Dumping VMQ MEMORY LIST\n");
+    printf("==========================\n\n");
+
+    struct VMQ_mem_node* pvmn = VMQ_MEM_LIST_HEAD;
+
+    if(!pvmn)
+	printf("EMPTY\n");
+    else
+	while(pvmn)
+	{
+	    switch(pvmn->nodetype)
+	    {
+		struct intlit* pil;
+		struct fltlit* pfl;
+		struct strlit* psl;
+		case INT_LITERAL:   pil = ((struct int_list_node*)pvmn->node)->pil;
+				    printf("%03d\t%-25s(0x%llX)\n", pil->VMQ_loc, pil->val, (unsigned long long)pvmn->node);
+				    break;
+
+		case FLT_LITERAL:   pfl = ((struct flt_list_node*)pvmn->node)->pfl;
+				    printf("%03d\t%-25s(0x%llX)\n", pfl->VMQ_loc, pfl->val, (unsigned long long)pvmn->node);
+				    break;
+
+		case STR_LITERAL:   psl = ((struct str_list_node*)pvmn->node)->psl;
+				    printf("%03d\t%-25s(0x%llX)\n", psl->VMQ_loc, psl->val, (unsigned long long)pvmn->node);
+				    break;
+	    }
+
+	    pvmn = pvmn->next;
+	}
+
+    printf("==========================\n\n");
 }
 
 char* nodeTypeToString(int nodetype)

@@ -42,12 +42,20 @@ struct VMQ_temp_node
     struct VMQ_temp_node* next;
 };
 
+struct VMQ_mem_node
+{
+    unsigned int nodetype;
+    void* node;
+    struct VMQ_mem_node* next;
+};
+
 typedef struct int_list_node* INT_LIST;
 typedef struct flt_list_node* FLT_LIST;
 typedef struct var_list_node* VAR_LIST;
 typedef struct str_list_node* STR_LIST;
 typedef struct VMQ_list_node* VMQ_LIST;
 typedef struct VMQ_temp_node* TEMP_LIST;
+typedef struct VMQ_mem_node*  VMQ_MEM_LIST;
 
 struct VMQ_func_data
 {
@@ -84,5 +92,6 @@ struct var_list_node* appendToVarList(int var_type, char* var_name);
 struct var_list_node* appendToParamList(int var_type, char* var_name);
 struct VMQ_list_node* appendToVMQList(char* VMQ_line);
 struct func_list_node* appendToFuncList(int return_type, char* func_name);
+struct VMQ_mem_node*  appendToVMQMemList(int nodetype, void* node);
 
 #endif

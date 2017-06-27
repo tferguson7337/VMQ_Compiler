@@ -48,6 +48,8 @@ void eval(struct AST_node* a)
 	// CURRENT_FUNC point should change when encountering a function header (part of FUNC_DEF).
 	case FUNC_HEAD:	    CURRENT_FUNC = ((struct func_list_node*)a->l);  break;
 
+	case PROG:	    CURRENT_FUNC = FUNC_LIST_HEAD;  break;
+
 	// All other non-terminal cases are traversed.
 	default:	    eval(a->l); eval(a->r);
     }

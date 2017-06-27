@@ -151,6 +151,7 @@ NEWLINE (\n)
 				varListPtr = varListPtr->next;
 			    }
 
+			    // Var isn't found yet, check the local variable list.
 			    varListPtr = CURRENT_FUNC->var_list_head;
 			    while(varListPtr)
 			    {
@@ -163,7 +164,20 @@ NEWLINE (\n)
 				varListPtr = varListPtr->next;
 			    }
 
-			    yyerror("Variable reference not found in global or local list!");
+			    // Var still isn't found; check the params list.
+			    varListPtr = CURRENT_FUNC->param_list_head;
+			    while(varListPtr)
+			    {
+				varPtr = varListPtr->pvr->val;
+				if(strcmp(varPtr->var_name, yytext) == 0)
+				{
+				    yylval.VAR_REF = varListPtr->pvr;
+				    return ID;
+				}
+				varListPtr = varListPtr->next;
+			    }
+
+			    yyerror("Variable reference not found in global, local, or parameter list!");
 			}
 		    }
 
