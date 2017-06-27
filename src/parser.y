@@ -99,7 +99,7 @@ type:			INT							{ $$ = INT; }
 		    |	FLOAT							{ $$ = FLOAT; }
 ;
 
-function_head:		type ID arguments					{ $$ = create_AST_node(FUNC_HEAD, create_var_node(ID, $2), $3); }
+function_head:		type ID arguments					{ $$ = create_AST_node(FUNC_HEAD, create_func_node(ID, yylval.FUNC), $3); }
 ;
 
 arguments:		'(' parameter_list ')'					{ $$ = $2; }
@@ -172,7 +172,7 @@ term:			factor							{ $$ = $1; }
 ;
 
 factor:			ID							{ $$ = create_var_node(VAR_ACCESS, $1); }
-		    |	ID '(' expression_list ')'				{ $$ = create_AST_node(FUNC_CALL, create_var_node(ID, $1), $3); }
+		    |	ID '(' expression_list ')'				{ $$ = create_AST_node(FUNC_CALL, create_func_node(ID, (struct func_list_node*)$1), $3); }
 		    |	literal							{ $$ = $1; }
 		    |	'(' expression ')'		%prec UNARY		{ $$ = $2; }
 		    |	ID '[' expression ']'					{ $$ = create_AST_node(ARR_ACCESS, create_var_node(ID, $1), $3); }

@@ -262,7 +262,7 @@ void dumpGlobalDataLists()
     else
 	while(pfln)
 	{
-	    printf("%-15s\t(0x%llX)\n", pfln->pfl->val, (unsigned long long)pfln);
+	    printf("%03d\t%-15s\t(0x%llX)\n", pfln->pfl->VMQ_loc, pfln->pfl->val, (unsigned long long)pfln);
 	    pfln = pfln->next;
 	}
     
@@ -277,7 +277,7 @@ void dumpGlobalDataLists()
     else
 	while(piln)
 	{
-	    printf("%-15s\t(0x%llX)\n", piln->pil->val, (unsigned long long)piln);
+	    printf("%03d\t%-15s\t(0x%llX)\n", piln->pil->VMQ_loc, piln->pil->val, (unsigned long long)piln);
 	    piln = piln->next;
 	}
 
@@ -293,9 +293,9 @@ void dumpGlobalDataLists()
 	while(psln)
 	{
 	    if(strcmp(psln->psl->val, "\\n") == 0)
-		printf("%-30s\t(0x%llX)\n", "\"\\n\"", (unsigned long long)psln);
+		printf("%03d\t%-30s\t(0x%llX)\n", psln->psl->VMQ_loc, "\"\\n\"", (unsigned long long)psln);
 	    else
-		printf("%-30s\t(0x%llX)\n", psln->psl->val, (unsigned long long)psln);
+		printf("%03d\t%-30s\t(0x%llX)\n", psln->psl->VMQ_loc, psln->psl->val, (unsigned long long)psln);
 	    psln = psln->next;
 	}
 
@@ -310,6 +310,7 @@ void dumpGlobalDataLists()
     else
 	while(pvln)
 	{
+	    printf("%03d\t", pvln->pvr->VMQ_loc);
 	    printf("%-15s\t", pvln->pvr->val->var_name);
 	    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));
 	    printf("%-3d\t", pvln->pvr->val->size);
@@ -370,7 +371,10 @@ void dumpGlobalDataLists()
 				    break;
 
 		case STR_LITERAL:   psl = ((struct str_list_node*)pvmn->node)->psl;
-				    printf("%03d\t%-25s(0x%llX)\n", psl->VMQ_loc, psl->val, (unsigned long long)pvmn->node);
+				    if(strcmp(psl->val, "\\n") == 0)
+					printf("%03d\t\"\\n\"\t\t(0x%llX)\n", psl->VMQ_loc, (unsigned long long)pvmn->node);
+				    else
+					printf("%03d\t%-25s(0x%llX)\n", psl->VMQ_loc, psl->val, (unsigned long long)pvmn->node);
 				    break;
 	    }
 

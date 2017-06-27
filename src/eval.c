@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "data_lists.h"
 #include "eval.h"
 #include "helper_functions.h"
@@ -45,10 +46,23 @@ void eval(struct AST_node* a)
 	case VAR_ACCESS:
 	case ARR_ACCESS:    return;
 
-	// CURRENT_FUNC point should change when encountering a function header (part of FUNC_DEF).
-	case FUNC_HEAD:	    CURRENT_FUNC = ((struct func_list_node*)a->l);  break;
+	// CURRENT_FUNC pointer should change when encountering a function header (part of FUNC_DEF).
+	case FUNC_DEF:	    if(!CURRENT_FUNC)
+				CURRENT_FUNC = FUNC_LIST_HEAD;
+			    else
+				CURRENT_FUNC = CURRENT_FUNC->next;
+			    eval(a->l); eval(a->r);
 
-	case PROG:	    CURRENT_FUNC = FUNC_LIST_HEAD;  break;
+			    if(strcmp(CURRENT_FUNC->func_name, "main") == 0)
+				appendToVMQList("h");
+			    else
+				appendToVMQList("/");
+
+			    break;
+
+	case PROG:	    CURRENT_FUNC = NULL;
+			    eval(a->l);	eval(a->r);
+			    break;
 
 	// All other non-terminal cases are traversed.
 	default:	    eval(a->l); eval(a->r);
@@ -85,31 +99,33 @@ void evalOutputStatement(struct AST_node* a)
 	struct var* v = NULL;
 	struct varref* vnode = NULL;
 
+	case OUTPUT:	   
 	case STREAMOUT:	    evalOutputStatement(a->l); evalOutputStatement(a->r); break;
 	
 	// Terminal cases
-	case STR_LITERAL:   VMQ_line = malloc(26);
-			    sprintf(VMQ_line, "p #%d\n", ((struct strlit*)a)->VMQ_loc);
+	case STR_LITERAL:   
+	case ENDL:	    VMQ_line = malloc(26);
+			    sprintf(VMQ_line, "p #%d", ((struct str_node*)a)->val->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
-			    appendToVMQList("c 0 -11\n");
-			    appendToVMQList("^ 2\n");
+			    appendToVMQList("c 0 -11");
+			    appendToVMQList("^ 2");
 			    break;
 
 	case INT_LITERAL:   VMQ_line = malloc(26);
-			    sprintf(VMQ_line, "p #%d\n", ((struct intlit*)a)->VMQ_loc);
+			    sprintf(VMQ_line, "p #%d", ((struct int_node*)a)->val->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
-			    appendToVMQList("c 0 -9\n");
-			    appendToVMQList("^ 2\n");
+			    appendToVMQList("c 0 -9");
+			    appendToVMQList("^ 2");
 			    break;
 
 	case FLT_LITERAL:   VMQ_line = malloc(26);
-			    sprintf(VMQ_line, "p #%d\n", ((struct fltlit*)a)->VMQ_loc);
+			    sprintf(VMQ_line, "p #%d", ((struct flt_node*)a)->val->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
-			    appendToVMQList("c 0 -10\n");
-			    appendToVMQList("^ 2\n");
+			    appendToVMQList("c 0 -10");
+			    appendToVMQList("^ 2");
 			    break;
 	
 	// Expression cases:
@@ -126,13 +142,13 @@ void evalOutputStatement(struct AST_node* a)
 			    if(v->isGlobal)	VMQ_addr_prefix = "#";
 			    else if(v->isParam)	VMQ_addr_prefix = "/";
 			    else		VMQ_addr_prefix = "#/-";
-			    sprintf(VMQ_line, "p %s%d\n", VMQ_addr_prefix, vnode->VMQ_loc);
+			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, vnode->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 			    free(VMQ_addr_prefix);
-			    if(v->var_type == INT)  appendToVMQList("c 0 -9\n");
-			    else		    appendToVMQList("c 0 -10\n");
-			    appendToVMQList("^ 2\n");
+			    if(v->var_type == INT)  appendToVMQList("c 0 -9");
+			    else		    appendToVMQList("c 0 -10");
+			    appendToVMQList("^ 2");
 			    break;
 			    
 	case ADD:

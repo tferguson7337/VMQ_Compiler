@@ -199,7 +199,8 @@ struct func_list_node* appendToFuncList(int return_type, char* func_name)
     temp->param_list_head = temp->param_list_tail = NULL;
     
     tempVMQ->stmt_list_head = tempVMQ->stmt_list_tail = NULL;
-    tempVMQ->stmt_count = tempVMQ->quad_start_line = tempVMQ->quad_end_line = 0;
+    tempVMQ->stmt_count = 0;
+    tempVMQ->quad_start_line = tempVMQ->quad_end_line = 1;
     tempVMQ->temp_list_head = tempVMQ->temp_list_tail = NULL;
     tempVMQ->temp_var_size = 0;
 

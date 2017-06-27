@@ -37,6 +37,12 @@ struct var_node
 	struct varref* val;
 };
 
+struct func_node
+{
+    int nodetype;
+    struct func_list_node* val;
+};
+
 /* Special node for IF_ELSE/WHILE statements */
 struct ctrl_node
 {
@@ -51,6 +57,7 @@ struct AST_node* create_int_node(int nodetype, struct intlit* val);
 struct AST_node* create_flt_node(int nodetype, struct fltlit* val);
 struct AST_node* create_str_node(int nodetype, struct strlit* val);
 struct AST_node* create_var_node(int nodetype, struct varref* val);
+struct AST_node* create_func_node(int nodetype, struct func_list_node* val);
 struct AST_node* create_ctrl_node(int nodetype, struct AST_node* c, struct AST_node* t, struct AST_node* f);
 
 #endif

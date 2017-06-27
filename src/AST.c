@@ -63,6 +63,18 @@ struct AST_node* create_var_node(int nodetype, struct varref* val)
 	return (struct AST_node*)pvn;
 }
 
+struct AST_node* create_func_node(int nodetype, struct func_list_node* val)
+{
+    struct func_node* pfn = malloc(sizeof(struct func_node));
+
+    if(!pfn) { yyerror("\n\tcreate_func_node() - Memory Allocation Failed!\n"); exit(-1); }
+
+    pfn->nodetype = nodetype;
+    pfn->val = val;
+
+    return (struct AST_node*)pfn;
+}
+
 struct AST_node* create_ctrl_node(int nodetype, struct AST_node* c, struct AST_node* t, struct AST_node* f)
 {
 	struct ctrl_node* pcn = malloc(sizeof(struct ctrl_node));
