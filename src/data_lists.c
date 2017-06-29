@@ -178,6 +178,9 @@ struct VMQ_list_node* appendToVMQList(char* VMQ_line)
 	
     temp->VMQ_line = strdup(VMQ_line);
     temp->next = NULL;
+    
+    CURRENT_FUNC->VMQ_data.stmt_count++; 
+    CURRENT_FUNC->VMQ_data.quad_end_line++;
 
     return temp;
 }
@@ -195,14 +198,13 @@ struct func_list_node* appendToFuncList(int return_type, char* func_name)
     temp->return_type = return_type;
     temp->func_name = strdup(func_name);
     temp->var_list_head = temp->var_list_tail = NULL;
-    temp->var_size = 0;
+    temp->var_total_size = 0;
     temp->param_list_head = temp->param_list_tail = NULL;
     
     tempVMQ->stmt_list_head = tempVMQ->stmt_list_tail = NULL;
     tempVMQ->stmt_count = 0;
     tempVMQ->quad_start_line = tempVMQ->quad_end_line = 1;
-    tempVMQ->temp_list_head = tempVMQ->temp_list_tail = NULL;
-    tempVMQ->temp_var_size = 0;
+    tempVMQ->tempvar_max_size = 0;
 
     temp->next = NULL;
 
@@ -223,6 +225,7 @@ struct VMQ_mem_node* appendToVMQMemList(int nodetype, void* node)
 
     temp->nodetype = nodetype;
     temp->node = node;
+    temp->next = NULL;
 
     return temp;
 }

@@ -64,9 +64,10 @@ struct VMQ_func_data
     unsigned int stmt_count;		// Counter for number of elements in VMQ_LIST VMQ_list_head
     unsigned int quad_start_line;	// Quad addr that marks beginning stmt of function
     unsigned int quad_end_line;		// Quad addr that marks end stmt of function
-    VAR_LIST temp_list_head;		// List for storing temporary VMQ variables used for storing results of intermediate calculations.
-    VAR_LIST temp_list_tail;		// Tail pointer for temporary variable list, convenient for insert.
-    unsigned int temp_var_size;		// Size of temp vars, in bytes.
+    unsigned int tempvar_start;		// Base addr that marks the beginning segment of temporary variables
+    unsigned int tempvar_cur_addr;	// Tracks the base addr of the lastest temporary variable currently in use.
+    unsigned int tempvar_cur_size;	// Tracks the amount of space currently in use by temporary variables, in bytes.
+    unsigned int tempvar_max_size;	// Max size of temporary variables required by function, in bytes.
 };
 
 struct func_list_node
@@ -75,7 +76,7 @@ struct func_list_node
 	char* func_name;		// Name of function as found in cpp file.
 	VAR_LIST var_list_head;		// Head of list for tracking func's local vars
 	VAR_LIST var_list_tail;
-	unsigned int var_size;		// Size of local (non-param) vars, in bytes.
+	unsigned int var_total_size;	// Size of local (non-param) vars, in bytes.
 	VAR_LIST param_list_head;	// List for tracking func's parameters
 	VAR_LIST param_list_tail;
 	struct VMQ_func_data VMQ_data;	// Tracks VMQ related data (VMQ statements, temporary variables, etc.)

@@ -121,10 +121,13 @@ void configureGlobalMemorySpace()
 
 void configureLocalMemorySpaces()
 {
+    if(DEBUG) { printf("CONFIGURING LOCAL MEMORY SPACES..."); fflush(stdout); }
+
     CURRENT_FUNC = FUNC_LIST_HEAD;
 
     while(CURRENT_FUNC)
     {
+	// If a function has no local variables, skip to next function.
 	if(!CURRENT_FUNC->var_list_head)
 	{
 	    CURRENT_FUNC = CURRENT_FUNC->next;
@@ -135,6 +138,7 @@ void configureLocalMemorySpaces()
 	struct var_list_node* prev_node = NULL;
 	struct varref* vref = NULL;
 	struct var* v = NULL;
+	int* var_total_size = &(CURRENT_FUNC->var_total_size);
 
 	// Traverse list, find first INT var or array of odd size - set VMQ_loc to 2;
 	while(list_ptr)
@@ -143,15 +147,16 @@ void configureLocalMemorySpaces()
 	    v = vref->val;
 	    if(v->var_type == INT && v->size % 2)
 	    {
-		vref->VMQ_loc = 2;
 		prev_node = list_ptr;
+		vref->VMQ_loc = 2;
+		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		break;
 	    }
 
 	    list_ptr = list_ptr->next;
 	}
 
-	if(!prev_node)
+	if(!list_ptr)
 	{
 	    // Function contains no INT vars or INT arrays of odd size.
 	    // Memory cannot be ideally packed - just traverse the list
@@ -160,6 +165,7 @@ void configureLocalMemorySpaces()
 	    // Do the first variable so we can use prev_node in the loop
 	    list_ptr = CURRENT_FUNC->var_list_head;
 	    list_ptr->pvr->VMQ_loc = 2;
+	    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 	    prev_node = list_ptr;
 	    list_ptr = list_ptr->next;
 
@@ -171,6 +177,11 @@ void configureLocalMemorySpaces()
 		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
 		else
 		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+		
+		if(list_ptr->pvr->val->var_type == INT)
+		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+		else
+		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
 
 		prev_node = list_ptr;
 		list_ptr = list_ptr->next;
@@ -179,10 +190,12 @@ void configureLocalMemorySpaces()
 	}
 	else
 	{
+	    struct var_list_node* skip_node = prev_node;
 	    // Scan for floats, set their VMQ_locs first.
 	    list_ptr = CURRENT_FUNC->var_list_head;
 	    while(list_ptr)
 	    {
+		if(list_ptr == skip_node) { list_ptr = list_ptr->next; continue; }
 		vref = prev_node->pvr;
 		v = vref->val;
 		
@@ -193,6 +206,7 @@ void configureLocalMemorySpaces()
 		    else
 			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
 
+		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
 		    prev_node = list_ptr;
 		}
 
@@ -203,6 +217,7 @@ void configureLocalMemorySpaces()
 	    list_ptr = CURRENT_FUNC->var_list_head;
 	    while(list_ptr)
 	    {
+		if(list_ptr == skip_node) { list_ptr = list_ptr->next; continue; }
 		vref = prev_node->pvr;
 		v = vref->val;
 
@@ -213,6 +228,7 @@ void configureLocalMemorySpaces()
 		    else
 			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
 
+		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		    prev_node = list_ptr;
 		}
 
@@ -220,8 +236,12 @@ void configureLocalMemorySpaces()
 	    }   
 	}
 
+	if(DEBUG) { printf("\n\tCURRENT_FUNC (\"%s\") size of local vars == %d\n", CURRENT_FUNC->func_name, CURRENT_FUNC->var_total_size); fflush(stdout); }
+
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }
+
+    if(DEBUG) { printf("Done!\n"); fflush(stdout); }
 }
 
 void setDebugFlags(int argc, char*** argv)
@@ -254,6 +274,7 @@ void dumpGlobalDataLists()
     printf("==========================\n");
     printf("Dumping LITERAL FLOAT list\n");
     printf("==========================\n\n");
+    fflush(stdout);
 
     struct flt_list_node* pfln = FLT_LIST_HEAD;
 
@@ -263,12 +284,14 @@ void dumpGlobalDataLists()
 	while(pfln)
 	{
 	    printf("%03d\t%-15s\t(0x%llX)\n", pfln->pfl->VMQ_loc, pfln->pfl->val, (unsigned long long)pfln);
+	    fflush(stdout);
 	    pfln = pfln->next;
 	}
     
     printf("==========================\n");
     printf("Dumping LITERAL INT list\n");
     printf("==========================\n\n");
+    fflush(stdout);
 
     struct int_list_node* piln = INT_LIST_HEAD;
 
@@ -278,12 +301,14 @@ void dumpGlobalDataLists()
 	while(piln)
 	{
 	    printf("%03d\t%-15s\t(0x%llX)\n", piln->pil->VMQ_loc, piln->pil->val, (unsigned long long)piln);
+	    fflush(stdout);
 	    piln = piln->next;
 	}
 
     printf("==========================\n");
     printf("Dumping LITERAL STR list\n");
     printf("==========================\n\n");
+    fflush(stdout);
     
     struct str_list_node* psln = STR_LIST_HEAD;
     
@@ -296,12 +321,15 @@ void dumpGlobalDataLists()
 		printf("%03d\t%-30s\t(0x%llX)\n", psln->psl->VMQ_loc, "\"\\n\"", (unsigned long long)psln);
 	    else
 		printf("%03d\t%-30s\t(0x%llX)\n", psln->psl->VMQ_loc, psln->psl->val, (unsigned long long)psln);
+
+	    fflush(stdout);
 	    psln = psln->next;
 	}
 
     printf("==========================\n");
     printf("Dumping GLOBAL VAR list\n");
     printf("==========================\n\n");
+    fflush(stdout);
 
     struct var_list_node* pvln = GLOBAL_VAR_LIST_HEAD;
 
@@ -310,17 +338,18 @@ void dumpGlobalDataLists()
     else
 	while(pvln)
 	{
-	    printf("%03d\t", pvln->pvr->VMQ_loc);
-	    printf("%-15s\t", pvln->pvr->val->var_name);
-	    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));
-	    printf("%-3d\t", pvln->pvr->val->size);
-	    printf("(0x%llX)\n", (unsigned long long)pvln);
+	    printf("%03d\t", pvln->pvr->VMQ_loc);			    fflush(stdout);
+	    printf("%-15s\t", pvln->pvr->val->var_name);		    fflush(stdout);
+	    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));   fflush(stdout);
+	    printf("%-3d\t", pvln->pvr->val->size);			    fflush(stdout);
+	    printf("(0x%llX)\n", (unsigned long long)pvln);		    fflush(stdout);
 	    pvln = pvln->next;
 	}
     
     printf("==========================\n");
     printf("Dumping FUNC LIST\n");
     printf("==========================\n\n");
+    fflush(stdout);
 
     struct func_list_node* pFuncList = FUNC_LIST_HEAD;
 
@@ -330,17 +359,19 @@ void dumpGlobalDataLists()
 	while(pFuncList)
 	{
 	    printf("%-15s\t(0x%llX)\n", pFuncList->func_name, (unsigned long long)pFuncList);
+	    fflush(stdout);
 	    printf("\t--> Dumping %s\'s vars:\n", pFuncList->func_name);
+	    fflush(stdout);
 	    pvln = pFuncList->var_list_head;
 	    if(!pvln)
 		printf("\tEMPTY\n");
 	    else
 		while(pvln)
 		{
-		    printf("\t%-15s\t", pvln->pvr->val->var_name);
-		    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));
-		    printf("%-3d\t", pvln->pvr->val->size);
-		    printf("(0x%llX)\n", (unsigned long long)pvln);
+		    printf("\t%-15s\t", pvln->pvr->val->var_name);		    fflush(stdout);
+		    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));   fflush(stdout);
+		    printf("%-3d\t", pvln->pvr->val->size);			    fflush(stdout);
+		    printf("(0x%llX)\n", (unsigned long long)pvln);		    fflush(stdout);
 		    pvln = pvln->next;
 		}
 	    pFuncList = pFuncList->next;
@@ -349,6 +380,7 @@ void dumpGlobalDataLists()
     printf("==========================\n");
     printf("Dumping VMQ MEMORY LIST\n");
     printf("==========================\n\n");
+    fflush(stdout);
 
     struct VMQ_mem_node* pvmn = VMQ_MEM_LIST_HEAD;
 
@@ -377,11 +409,13 @@ void dumpGlobalDataLists()
 					printf("%03d\t%-25s(0x%llX)\n", psl->VMQ_loc, psl->val, (unsigned long long)pvmn->node);
 				    break;
 	    }
-
+	    
+	    fflush(stdout);
 	    pvmn = pvmn->next;
 	}
 
     printf("==========================\n\n");
+    fflush(stdout);
 }
 
 char* nodeTypeToString(int nodetype)
