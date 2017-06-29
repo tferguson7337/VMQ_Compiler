@@ -241,7 +241,7 @@ void configureLocalMemorySpaces()
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }
 
-    if(DEBUG) { printf("Done!\n"); fflush(stdout); }
+    if(DEBUG) { printf("DONE!\n"); fflush(stdout); }
 }
 
 void setDebugFlags(int argc, char*** argv)
