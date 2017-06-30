@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 
     if(DEBUG) 
 	dumpGlobalDataLists();
-
+    
     eval(AST_ROOT);
 
     FILE* qFile;

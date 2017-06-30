@@ -9,6 +9,7 @@
     #include <stdlib.h>
     int yylex();
     int yyerror(char *);
+
 /*
  * Data structures, #include's, and other things needed
  * by the pattern-match code blocks below go here in here.
@@ -29,7 +30,7 @@
 
 /* Operator tokens */
 %token ASSIGNOP
-%token <op_type> MULOP ADDOP INCOP
+%token <op_type> INCOP ADDOP MULOP
 %token NOT OR AND
 
 /* Literal tokens */
@@ -60,7 +61,7 @@
 /* Precedence and Associativity */
 
 %nonassoc <op_type> RELOP
-%right ASSIGNOP INCOP
+%right ASSIGNOP
 %left ADDOP
 %left MULOP
 %nonassoc NOT UNARY
@@ -168,7 +169,7 @@ simple_expression:	term							{ $$ = $1;}
 ;
 
 term:			factor							{ $$ = $1; }
-		    |	term MULOP factor					{ int op; if($2 == 1) op = MUL; else if ($2 == 2) op = DIV; else op = MOD; create_AST_node(op, $1, $3); }
+		    |	term MULOP factor					{ int op; if($2 == 1) op = MUL; else if ($2 == 2) op = DIV; else op = MOD; $$ = create_AST_node(op, $1, $3); }
 ;
 
 factor:			ID							{ $$ = create_var_node(VAR_ACCESS, $1); }

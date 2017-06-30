@@ -368,10 +368,18 @@ void dumpGlobalDataLists()
 	    else
 		while(pvln)
 		{
-		    printf("\t%-15s\t", pvln->pvr->val->var_name);		    fflush(stdout);
-		    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));   fflush(stdout);
-		    printf("%-3d\t", pvln->pvr->val->size);			    fflush(stdout);
-		    printf("(0x%llX)\n", (unsigned long long)pvln);		    fflush(stdout);
+		    struct varref* vnode = pvln->pvr;
+		    struct var* v = vnode->val;
+		    printf("\t%-15s\t", v->var_name);				fflush(stdout);
+		    printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
+		    if(pvln->pvr->val->isGlobal)
+			printf("%03d\t", vnode->VMQ_loc);
+		    else if(pvln->pvr->val->isParam)
+			printf("@/%d\t", vnode->VMQ_loc);
+		    else
+			printf("/-%d\t", vnode->VMQ_loc);
+		    fflush(stdout);
+		    printf("(0x%llX)\n", (unsigned long long)pvln);		fflush(stdout);
 		    pvln = pvln->next;
 		}
 	    pFuncList = pFuncList->next;

@@ -71,7 +71,7 @@ NEWLINE (\n)
 
 {ASSIGNOP}	    { if(DEBUG) printf("%s", yytext); fflush(stdout);  return ASSIGNOP; }
 
-{MULOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; return MULOP; }
+{MULOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(yytext[0] == '*') yylval.op_type = 1; else if (yytext[0] == '/') yylval.op_type = 2; else yylval.op_type = 3; if(DEBUG){ printf("\n\nLexer encountered MULOP(%c), returning %d\n\n", yytext[0], yylval.op_type); fflush(stdout); } return MULOP; }
 
 {ADDOP}		    { if(DEBUG) printf("%s", yytext); fflush(stdout);  if(yytext[0] == '+') yylval.op_type = 1; else yylval.op_type = 2; return ADDOP; }
 

@@ -103,14 +103,14 @@ void evalOutputStatement(struct AST_node* a)
 {
     if(!a || a->nodetype == 0) return;
 
+    // Supporting data structures.
+    char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
+    struct var* v = NULL;
+    struct varref* vnode = NULL;
+    unsigned int result_type = 0;
+
     switch(a->nodetype)
     {
-	// Supporting data structures.
-	char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
-	struct var* v = NULL;
-	struct varref* vnode = NULL;
-	unsigned int result_type = 0;
-
 	case OUTPUT:	   
 	case STREAMOUT:	    evalOutputStatement(a->l); evalOutputStatement(a->r); break;
 	
@@ -147,17 +147,16 @@ void evalOutputStatement(struct AST_node* a)
 	case ADD_ASSIGN:
 	case SUB_ASSIGN:    if(a->nodetype == ASSIGNOP) evalAssignOpStatement(a);
 			    else			evalIncOpStatement(a);
+	case VAR_ACCESS:    
 			    vnode = ((struct varref*)a->l);
 			    v = vnode->val;
 			    VMQ_line = malloc(32);
-			    VMQ_addr_prefix = malloc(4);
 			    if(v->isGlobal)	VMQ_addr_prefix = "#";
 			    else if(v->isParam)	VMQ_addr_prefix = "/";
 			    else		VMQ_addr_prefix = "#/-";
 			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, vnode->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
-			    free(VMQ_addr_prefix);
 			    if(v->var_type == INT)  appendToVMQList("c 0 -9");
 			    else		    appendToVMQList("c 0 -10");
 			    appendToVMQList("^ 2");
@@ -191,13 +190,11 @@ void evalOutputStatement(struct AST_node* a)
 				appendToVMQList("c 0 -10");
 				appendToVMQList("^ 2");
 			    }
-
 			    break;
 
 	case FUNC_CALL:	    
 			    break;
 
-	case VAR_ACCESS:    
 	case ARR_ACCESS:    
 			    break;
 
@@ -207,7 +204,89 @@ void evalOutputStatement(struct AST_node* a)
 
 void evalAssignOpStatement(struct AST_node* a)
 {
+    if(!a || a->nodetype == 0)	return;
+    if(!a->r || a->r->nodetype == 0) return;
 
+    // Supporting data structures.
+    char* VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
+    char op_code;
+    struct varref* l_node = ((struct var_node*)a->l)->val;
+    struct var* l_val = l_node->val;
+    struct varref* r_node = NULL;
+    struct var* r_val = NULL;
+    struct intlit* r_int = NULL;
+    struct fltlit* r_flt = NULL;
+    unsigned int result_type = 0;
+
+    int ntype = a->r->nodetype;
+
+    // Left child of (a) is guaranteed to be a variable.
+    // Right child is either an ASSIGNOP, INCOP, ADDOP, MULOP, INT/FLT_LITERAL, VAR_ACCESS, FUNC_CALL, ARR_ACCESS
+    switch(ntype)
+    {
+	case ASSIGNOP:	    evalAssignOpStatement(a->r);
+			    r_node = ((struct var_node*)a->r->l)->val;
+			    r_val = r_node->val;
+			    
+			    if(l_val->var_type == INT && r_val->var_type == INT)	    op_code = 'i';
+			    else if(l_val->var_type == FLOAT && r_val->var_type == FLOAT)   op_code = 'I';
+			    else if (l_val->var_type == INT && r_val->var_type == FLOAT)    op_code = 'f';
+			    else							    op_code = 'F';
+			    
+			    if(l_val->isGlobal)	    VMQ_addr_l_prefix = "";
+			    else if(l_val->isParam) VMQ_addr_l_prefix = "@/";
+			    else		    VMQ_addr_l_prefix = "/-";
+			    
+			    if(r_val->isGlobal)	    VMQ_addr_r_prefix = "";
+			    else if(r_val->isParam) VMQ_addr_r_prefix = "@/";
+			    else		    VMQ_addr_r_prefix = "/-";
+			    
+			    VMQ_line = malloc(32);
+			    sprintf(VMQ_line, "%c %s%d %s%d", op_code, VMQ_addr_r_prefix, r_node->VMQ_loc, VMQ_addr_l_prefix, l_node->VMQ_loc);
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+
+			    break;
+
+	case INT_LITERAL:   
+	case FLT_LITERAL:   if(ntype == INT_LITERAL)
+			    {
+				r_int = ((struct int_node*)a->r)->val;
+				if(l_val->var_type == INT)	op_code = 'i';
+				else				op_code = 'F';
+			    }
+			    else
+			    {
+				r_flt = ((struct flt_node*)a->r)->val;
+				if(l_val->var_type == INT)	op_code = 'f';
+				else				op_code = 'I';
+			    }
+
+			    if(l_val->isGlobal)	    VMQ_addr_l_prefix = "";
+			    else if(l_val->isParam) VMQ_addr_l_prefix = "@/";
+			    else		    VMQ_addr_l_prefix = "/-";
+
+			    VMQ_line = malloc(32);
+			    if(r_int)	sprintf(VMQ_line, "%c %d %s%d", op_code, r_int->VMQ_loc, VMQ_addr_l_prefix, l_node->VMQ_loc);
+			    else	sprintf(VMQ_line, "%c %d %s%d", op_code, r_int->VMQ_loc, VMQ_addr_l_prefix, l_node->VMQ_loc);
+
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+
+			    break;
+	
+	case VAR_ACCESS:
+	
+			    break;
+
+	case ADD:
+	case SUB:
+	case MUL:
+	case DIV:
+	case MOD:	    break;
+	
+	case ARR_ACCESS:    break;
+    }
 }
 
 void evalIncOpStatement(struct AST_node* a)

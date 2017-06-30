@@ -5,8 +5,6 @@ int main()
 
 	int a, b, c, d, e, f, g;
 
-	a=b=c=d=e=f=g=0;
-
 	a = 5 * 2;
 
 	b = 3 - 4;
