@@ -20,11 +20,10 @@ int main(int argc, char** argv)
 
     configureGlobalMemorySpace();
     configureLocalMemorySpaces();
-
-    if(DEBUG) 
-	dumpGlobalDataLists();
     
     eval(AST_ROOT);
+
+    if(DEBUG) dumpGlobalDataLists();
 
     FILE* qFile;
     setDestFile(argv[getFileIndex(argc, &argv)], &qFile);

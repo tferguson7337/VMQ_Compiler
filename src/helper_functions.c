@@ -127,17 +127,40 @@ void configureLocalMemorySpaces()
 
     while(CURRENT_FUNC)
     {
-	// If a function has no local variables, skip to next function.
-	if(!CURRENT_FUNC->var_list_head)
+	// If a function has no params or local variables, skip to next function.
+	if(!CURRENT_FUNC->param_list_head && !CURRENT_FUNC->var_list_head)
 	{
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue;
 	}
 
-	struct var_list_node* list_ptr = CURRENT_FUNC->var_list_head;
+	struct var_list_node* list_ptr = CURRENT_FUNC->param_list_head;
 	struct var_list_node* prev_node = NULL;
 	struct varref* vref = NULL;
 	struct var* v = NULL;
+	
+	// Start with the parameters, if any.
+	if(list_ptr)
+	{
+	    unsigned int param_addr = 6;
+	    while(list_ptr)
+	    {
+		vref = list_ptr->pvr;
+		vref->VMQ_loc = param_addr;
+		param_addr += 2;
+		list_ptr = list_ptr->next;
+	    }
+	}
+
+	// Next do the local variables, if any.
+	list_ptr = CURRENT_FUNC->var_list_head;
+	
+	if(!list_ptr)
+	{ CURRENT_FUNC = CURRENT_FUNC->next; continue; }
+
+	prev_node = NULL;
+	vref = NULL;
+	v = NULL;
 	int* var_total_size = &(CURRENT_FUNC->var_total_size);
 
 	// Traverse list, find first INT var or array of odd size - set VMQ_loc to 2;
@@ -351,39 +374,56 @@ void dumpGlobalDataLists()
     printf("==========================\n\n");
     fflush(stdout);
 
-    struct func_list_node* pFuncList = FUNC_LIST_HEAD;
+    struct func_list_node* temp = CURRENT_FUNC;
+    CURRENT_FUNC = FUNC_LIST_HEAD;
 
-    if(!pFuncList)
+    if(!CURRENT_FUNC)
 	printf("EMPTY\n");
     else
-	while(pFuncList)
+	while(CURRENT_FUNC)
 	{
-	    printf("%-15s\t(0x%llX)\n", pFuncList->func_name, (unsigned long long)pFuncList);
+	    printf("%-15s\t(0x%llX)\n", CURRENT_FUNC->func_name, (unsigned long long)CURRENT_FUNC);
+	    printf("Quad Start: %d || Quad End: %d\n", CURRENT_FUNC->VMQ_data.quad_start_line, CURRENT_FUNC->VMQ_data.quad_end_line);
 	    fflush(stdout);
-	    printf("\t--> Dumping %s\'s vars:\n", pFuncList->func_name);
-	    fflush(stdout);
-	    pvln = pFuncList->var_list_head;
-	    if(!pvln)
-		printf("\tEMPTY\n");
-	    else
-		while(pvln)
-		{
-		    struct varref* vnode = pvln->pvr;
-		    struct var* v = vnode->val;
-		    printf("\t%-15s\t", v->var_name);				fflush(stdout);
-		    printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
-		    if(pvln->pvr->val->isGlobal)
-			printf("%03d\t", vnode->VMQ_loc);
-		    else if(pvln->pvr->val->isParam)
-			printf("@/%d\t", vnode->VMQ_loc);
-		    else
-			printf("/-%d\t", vnode->VMQ_loc);
-		    fflush(stdout);
-		    printf("(0x%llX)\n", (unsigned long long)pvln);		fflush(stdout);
-		    pvln = pvln->next;
-		}
-	    pFuncList = pFuncList->next;
+	    
+	    struct var_list_node* paramPtr = CURRENT_FUNC->param_list_head, *varPtr = CURRENT_FUNC->var_list_head;
+	    
+	    printf("\t--> Dumping %s\'s parameters:\n", CURRENT_FUNC->func_name); fflush(stdout);
+	    if(!paramPtr){ printf("\tPARAM LIST EMPTY!\n"); fflush(stdout); }
+	    while(paramPtr)
+	    {
+		struct varref* vnode = paramPtr->pvr;
+		struct var* v = vnode->val;
+		printf("\t%-15s\t", v->var_name);				fflush(stdout);
+		printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
+		printf("@/%d\t", vnode->VMQ_loc);
+		fflush(stdout);
+		printf("(0x%llX)\n", (unsigned long long)paramPtr);		fflush(stdout);
+		    
+		paramPtr = paramPtr->next;
+	    }
+
+	    printf("\t--> Dumping %s\'s vars:\n", CURRENT_FUNC->func_name); fflush(stdout);
+	    if(!varPtr){ printf("\tVAR LIST EMPTY!\n"); fflush(stdout); }
+	    while(varPtr)
+	    {
+		struct varref* vnode = varPtr->pvr;
+		struct var* v = vnode->val;
+		printf("\t%-15s\t", v->var_name);				fflush(stdout);
+		printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
+		if(v->isGlobal)
+		    printf("%03d\t", vnode->VMQ_loc);
+		else
+		    printf("/-%d\t", vnode->VMQ_loc);
+		fflush(stdout);
+		printf("(0x%llX)\n", (unsigned long long)varPtr);		fflush(stdout);
+		varPtr = varPtr->next;
+	    }
+
+	    CURRENT_FUNC = CURRENT_FUNC->next;
 	}
+    // Restore value.
+    CURRENT_FUNC = temp;
 
     printf("==========================\n");
     printf("Dumping VMQ MEMORY LIST\n");
