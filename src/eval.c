@@ -71,7 +71,6 @@ void eval(struct AST_node* a)
 
 			    sprintf(CURRENT_FUNC->VMQ_data.stmt_list_head->VMQ_line, "# %d", CURRENT_FUNC->var_total_size + CURRENT_FUNC->VMQ_data.tempvar_max_size); 
 			    
-
 			    if(strcmp(CURRENT_FUNC->func_name, "main") == 0)
 				appendToVMQList("h");
 			    else
@@ -173,6 +172,8 @@ void evalReturn(struct AST_node* a)
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "c @/4 %d", func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
+			    sprintf(VMQ_line, "^ %d", func->param_count * 2);
+			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 
 			    break;
@@ -218,7 +219,44 @@ void evalWhile(struct AST_node* a)
 
 void evalInput(struct AST_node* a)
 {
+    if(!a || a->nodetype == 0)	return;
 
+    // Supporting data structures.
+    char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
+    struct var* v = NULL;
+    struct varref* vnode = NULL;
+    unsigned int result_type = 0;
+
+    switch(a->nodetype)
+    {
+	case INPUT:	evalInput(a->l); break;
+
+	case STREAMIN:	evalInput(a->l);
+			vnode = ((struct var_node*)a->r)->val;
+			v = vnode->val;
+			
+			if(v->isGlobal)	    VMQ_addr_prefix = "";
+			else if(v->isParam) VMQ_addr_prefix = "/";
+			else		    VMQ_addr_prefix = "/-";
+
+			VMQ_line = malloc(32);
+			if(v->size == 1)
+			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, vnode->VMQ_loc);
+			else
+			{
+			    evalArrAccess(a->r);
+			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, CURRENT_FUNC->VMQ_data.tempvar_start);
+			}
+
+			appendToVMQList(VMQ_line);
+			free(VMQ_line);
+			if(v->var_type == INT)
+			    appendToVMQList("c 0 -1");
+			else
+			    appendToVMQList("c 0 -2");
+			break;
+			    
+    }
 }
 
 void evalOutput(struct AST_node* a)
@@ -314,10 +352,40 @@ void evalOutput(struct AST_node* a)
 			    }
 			    break;
 
-	case FUNC_CALL:	    
+	case FUNC_CALL:	    evalFuncCall(a);
+			    if(CURRENT_FUNC->return_type == INT)
+			    {
+				VMQ_line = malloc(32);
+				sprintf(VMQ_line, "c /-%d %d", CURRENT_FUNC->VMQ_data.tempvar_start, ((struct func_node*)a)->val->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
+				sprintf(VMQ_line, "^ %d", ((struct func_node*)a)->val->param_count * 2);
+				appendToVMQList(VMQ_line);
+				sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_start);
+				appendToVMQList(VMQ_line);
+				appendToVMQList("c 0 -9");
+				appendToVMQList("^ 2");
+				free(VMQ_line);
+			    }
+			    else
+			    {
+				VMQ_line = malloc(32);
+				sprintf(VMQ_line, "c /-%d %d", CURRENT_FUNC->VMQ_data.tempvar_start, ((struct func_node*)a)->val->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
+				sprintf(VMQ_line, "^ %d", ((struct func_node*)a)->val->param_count * 2);
+				appendToVMQList(VMQ_line);
+				if(CURRENT_FUNC->VMQ_data.tempvar_start % 4 == 0)
+				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_start);
+				else
+				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_start + 2);
+				appendToVMQList(VMQ_line);
+				appendToVMQList("c 0 -10");
+				appendToVMQList("^ 2");
+				free(VMQ_line);
+			    }
+
 			    break;
 
-	case ARR_ACCESS:    
+	case ARR_ACCESS:    evalArrAccess(a);
 			    break;
 
 	default:	    yyerror("evalOutput() - Unknown nodetype encountered"); exit(-1);
@@ -499,6 +567,8 @@ void evalAssignOp(struct AST_node* a)
 				VMQ_line = malloc(32);
 				sprintf(VMQ_line, "c %s%d %d", VMQ_addr_l_prefix, l_node->VMQ_loc, func->VMQ_data.quad_start_line);
 				appendToVMQList(VMQ_line);
+				sprintf(VMQ_line, "^ %d", func->param_count * 2);
+				appendToVMQList(VMQ_line);
 				free(VMQ_line);
 			    }
 			    else
@@ -517,6 +587,8 @@ void evalAssignOp(struct AST_node* a)
 
 				VMQ_line = malloc(32);
 				sprintf(VMQ_line, "c /-%d %d", tempvar_addr, func->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
+				sprintf(VMQ_line, "^ %d", func->param_count * 2);
 				appendToVMQList(VMQ_line);
 				sprintf(VMQ_line, "%c /-%d %s%d", op_code, tempvar_addr, VMQ_addr_l_prefix, l_node->VMQ_loc);
 				appendToVMQList(VMQ_line);
@@ -546,7 +618,28 @@ void evalFuncCall(struct AST_node* a)
 
 unsigned int evalAddOp(struct AST_node* a)
 {
-    return INT;
+    if(!a || a->nodetype == 0)	return 0;
+
+    // Supporting data structures
+    char* VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
+    char op_code;
+    struct varref* l_node = ((struct var_node*)a->l)->val;
+    struct var* l_val = l_node->val;
+    struct varref* r_node = NULL;
+    struct var* r_val = NULL;
+    struct intlit* r_int = NULL;
+    struct fltlit* r_flt = NULL;
+    struct func_list_node* func = NULL;
+    unsigned int result_type = 0;
+
+    struct AST_node* l = a->l, *r = a->r;
+
+    switch(a->nodetype)
+    {
+	
+    }
+
+    return result_type;
 }
 
 unsigned int evalMulOp(struct AST_node* a)

@@ -79,6 +79,7 @@ struct func_list_node
 	unsigned int var_total_size;	// Size of local (non-param) vars, in bytes.
 	VAR_LIST param_list_head;	// List for tracking func's parameters
 	VAR_LIST param_list_tail;
+	unsigned int param_count;	// Keeps track of number of parameters.
 	struct VMQ_func_data VMQ_data;	// Tracks VMQ related data (VMQ statements, temporary variables, etc.)
 	struct func_list_node* next;
 };

@@ -23,6 +23,10 @@ void init()
     // Add 0 and 1 to global VMQ space to represent TRUE and FALSE.
     appendToIntList("0"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "0");
     appendToIntList("1"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "1");
+
+    // Add 2 and 4 to global VMQ space to assist with array subscripting.
+    appendToIntList("2"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "2");
+    appendToIntList("4"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "4");
 }
 
 void configureGlobalMemorySpace()
