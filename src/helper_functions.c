@@ -134,6 +134,9 @@ void configureLocalMemorySpaces()
 	// If a function has no params or local variables, skip to next function.
 	if(!CURRENT_FUNC->param_list_head && !CURRENT_FUNC->var_list_head)
 	{
+	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue;
 	}
@@ -160,7 +163,13 @@ void configureLocalMemorySpaces()
 	list_ptr = CURRENT_FUNC->var_list_head;
 	
 	if(!list_ptr)
-	{ CURRENT_FUNC = CURRENT_FUNC->next; continue; }
+	{ 
+	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+	    
+	    CURRENT_FUNC = CURRENT_FUNC->next;
+	    continue; 
+	}
 
 	prev_node = NULL;
 	vref = NULL;
@@ -264,6 +273,16 @@ void configureLocalMemorySpaces()
 	}
 
 	if(DEBUG) { printf("\n\tCURRENT_FUNC (\"%s\") size of local vars == %d\n", CURRENT_FUNC->func_name, CURRENT_FUNC->var_total_size); fflush(stdout); }
+
+	unsigned int temp_start;
+	if(prev_node->pvr->val->var_type == INT)
+	    temp_start = prev_node->pvr->VMQ_loc + (VMQ_INT_SIZE * prev_node->pvr->val->size);
+	else
+	    temp_start = prev_node->pvr->VMQ_loc + (VMQ_FLT_SIZE * prev_node->pvr->val->size);
+
+	CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = temp_start;
+	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+
 
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }

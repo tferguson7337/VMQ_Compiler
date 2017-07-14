@@ -20,6 +20,8 @@ int main(int argc, char** argv)
 
     configureGlobalMemorySpace();
     configureLocalMemorySpaces();
+
+//  if(DEBUG) dumpGlobalDataLists();
     
     eval(AST_ROOT);
 

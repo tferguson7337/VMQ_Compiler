@@ -35,6 +35,16 @@ void eval(struct AST_node* a)
 	case MUL:
 	case DIV:
 	case MOD:	    evalMulOp(a);	break;
+	
+	// FUNC_CALL - function call outside of assigment, throw away the return value.
+	case FUNC_CALL:	    evalFuncCall(a);
+			    char* VMQ_line = malloc(32);
+			    sprintf(VMQ_line, "c 0 %d", ((struct func_node*)a->l)->val->VMQ_data.quad_start_line);
+			    appendToVMQList(VMQ_line);
+			    sprintf(VMQ_line, "^ %d", ((struct func_node*)a->l)->val->param_count);
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+			    break;
 
 	// Terminal cases are not handled here; return when encountered.
 	case INT_LITERAL:
@@ -356,9 +366,9 @@ void evalOutput(struct AST_node* a)
 			    if(CURRENT_FUNC->return_type == INT)
 			    {
 				VMQ_line = malloc(32);
-				sprintf(VMQ_line, "c /-%d %d", CURRENT_FUNC->VMQ_data.tempvar_start, ((struct func_node*)a)->val->VMQ_data.quad_start_line);
+				sprintf(VMQ_line, "c #/-%d %d", CURRENT_FUNC->VMQ_data.tempvar_start, ((struct func_node*)a->l)->val->VMQ_data.quad_start_line);
 				appendToVMQList(VMQ_line);
-				sprintf(VMQ_line, "^ %d", ((struct func_node*)a)->val->param_count * 2);
+				sprintf(VMQ_line, "^ %d", ((struct func_node*)a->l)->val->param_count * 2);
 				appendToVMQList(VMQ_line);
 				sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_start);
 				appendToVMQList(VMQ_line);
@@ -611,9 +621,117 @@ void evalArrAccess(struct AST_node* a)
 
 void evalFuncCall(struct AST_node* a)
 {
-    if(!a || a->nodetype == 0) return;
-    
-    
+    if(!a || a->nodetype == 0)	return;
+
+    char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
+    unsigned int result_type = 0;
+    struct func_list_node* func = NULL;
+    struct varref* v_node = NULL;
+    struct var* v = NULL;
+    struct intlit* i_lit = NULL;
+    struct fltlit* f_lit = NULL;
+    struct AST_node* param;
+
+    if(a->r && a->nodetype == FUNC_CALL)
+	param = a->r;
+    else
+	param = a;
+    /*
+	This eval function doesn't actually generate the function call statement itself (i.e., "c <#> <#>").
+	This is due to the fact that the 1st operand of the function call statement is used to determine
+	where the return value of the function is placed - this is dependent on the context of the function call.
+    */
+
+    unsigned int orig_tempvar_addr;
+
+    // Parameter(s) are any type of expression:
+    // ASSIGNOPs, INCOPs, ADDOPs, MULOPs, VAR/ARR_ACCESSes, INT/FLT_LITERALS, or other FUNC_CALLs.
+    switch(param->nodetype)
+    {
+	// Highest level - expression list case.
+	case EXPRS:	    orig_tempvar_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
+			    
+			    evalFuncCall(param->r);	
+			    evalFuncCall(param->l);	
+			    CURRENT_FUNC->VMQ_data.tempvar_cur_addr = orig_tempvar_addr;
+			    
+			    break;
+	
+	// Lower level - individual evaluation and push statements.
+	case ASSIGNOP:	    
+	case INCOP:	    if(param->nodetype == ASSIGNOP)	evalAssignOp(param);
+			    else if(param->nodetype == INCOP)	evalIncOp(param); 
+			    
+			    v_node = ((struct var_node*)param->l)->val;
+			    v = v_node->val;
+
+	case VAR_ACCESS:    if(param->nodetype == VAR_ACCESS)
+			    { 
+				v_node = ((struct var_node*)param)->val; 
+				v = v_node->val;
+			    }
+
+			    if(v->isGlobal)	VMQ_addr_prefix = "#";
+			    else if(v->isParam)	VMQ_addr_prefix = "/";
+			    else		VMQ_addr_prefix = "#/-";
+
+			    VMQ_line = malloc(32);
+			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, v_node->VMQ_loc);
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+
+			    break;
+	
+	case ADDOP:	    result_type = evalAddOp(param);
+
+			    break;
+
+	case MULOP:	    result_type = evalMulOp(param);
+
+			    break;
+
+	case ARR_ACCESS:    evalArrAccess(param);
+
+			    break;
+
+	case INT_LITERAL:
+	case FLT_LITERAL:   VMQ_line = malloc(32);
+			    if(param->nodetype == INT_LITERAL)
+			    {
+				i_lit = ((struct int_node*)param)->val;
+				sprintf(VMQ_line, "p #%d", i_lit->VMQ_loc);
+			    }
+			    else
+			    {
+				f_lit = ((struct flt_node*)param)->val;
+				sprintf(VMQ_line, "p #%d", f_lit->VMQ_loc);
+			    }
+
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+
+			    break;
+
+	case FUNC_CALL:	    evalFuncCall(param);
+			    func = ((struct func_node*)param->l)->val;
+			    VMQ_line = malloc(32);
+			    sprintf(VMQ_line, "c #/-%d %d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr, func->VMQ_data.quad_start_line);
+			    appendToVMQList(VMQ_line);
+			    sprintf(VMQ_line, "^ %d", func->param_count * 2);
+			    appendToVMQList(VMQ_line);
+			    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
+			    appendToVMQList(VMQ_line);
+
+			    if(func->return_type == INT)
+				CURRENT_FUNC->VMQ_data.tempvar_cur_addr += 2;
+			    else
+				CURRENT_FUNC->VMQ_data.tempvar_cur_addr += 4;
+			    
+			    free(VMQ_line);
+			    
+			    break;
+	
+    }
 }
 
 unsigned int evalAddOp(struct AST_node* a)
