@@ -131,7 +131,7 @@ void configureLocalMemorySpaces()
 
     while(CURRENT_FUNC)
     {
-	// If a function has no params or local variables, skip to next function.
+	// If a function has no params and no local variables, skip to next function.
 	if(!CURRENT_FUNC->param_list_head && !CURRENT_FUNC->var_list_head)
 	{
 	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 2;
@@ -184,7 +184,7 @@ void configureLocalMemorySpaces()
 	    if(v->var_type == INT && v->size % 2)
 	    {
 		prev_node = list_ptr;
-		vref->VMQ_loc = 2;
+		vref->VMQ_loc = 2 * v->size;
 		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		break;
 	    }
@@ -210,9 +210,9 @@ void configureLocalMemorySpaces()
 		vref = prev_node->pvr;
 		v = vref->val;
 		if(v->var_type == INT)
-		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
 		else
-		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
 		
 		if(list_ptr->pvr->val->var_type == INT)
 		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
@@ -238,9 +238,9 @@ void configureLocalMemorySpaces()
 		if(list_ptr->pvr->val->var_type == FLOAT)
 		{
 		    if(v->var_type == INT)
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
 		    else
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
 
 		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
 		    prev_node = list_ptr;
@@ -260,9 +260,9 @@ void configureLocalMemorySpaces()
 		if(list_ptr->pvr->val->var_type == INT)
 		{
 		    if(v->var_type == INT)
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_INT_SIZE * v->size);
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
 		    else
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + (VMQ_FLT_SIZE * v->size);
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
 
 		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		    prev_node = list_ptr;
@@ -276,13 +276,12 @@ void configureLocalMemorySpaces()
 
 	unsigned int temp_start;
 	if(prev_node->pvr->val->var_type == INT)
-	    temp_start = prev_node->pvr->VMQ_loc + (VMQ_INT_SIZE * prev_node->pvr->val->size);
+	    temp_start = prev_node->pvr->VMQ_loc + VMQ_INT_SIZE;
 	else
-	    temp_start = prev_node->pvr->VMQ_loc + (VMQ_FLT_SIZE * prev_node->pvr->val->size);
+	    temp_start = prev_node->pvr->VMQ_loc + VMQ_FLT_SIZE;
 
 	CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = temp_start;
 	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
-
 
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }

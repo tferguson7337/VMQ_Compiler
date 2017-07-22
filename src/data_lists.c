@@ -173,6 +173,12 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 
 struct VMQ_list_node* appendToVMQList(char* VMQ_line)
 {
+    if(DEBUG)
+    {
+	printf("appendToVMQList() - VMQ_line == \"%s\"\n", VMQ_line);
+	fflush(stdout);
+    }
+
     if(!CURRENT_FUNC)
 	yyerror("appendToVMQList() - CURRENT_FUNC is NULL, cannot append VMQ statement");
 

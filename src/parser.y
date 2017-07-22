@@ -66,6 +66,9 @@
 %left MULOP
 %nonassoc NOT UNARY
 
+// Used in eval, declared here to let Bison handle assigning it a value.
+%token ADDR
+
 /* Declare type for non-terminals */
 %type <a> program function_definitions identifier_list variable_definitions function_head arguments parameter_list
 %type <a> parameters block statements statement input_statement output_statement compound_statement variable

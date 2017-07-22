@@ -9,7 +9,7 @@
 //	Global Variables
 //	================
 
-enum { VMQ_INT_SIZE = 2, VMQ_FLT_SIZE = 4 };
+enum { VMQ_INT_SIZE = 2, VMQ_ADDR_SIZE = 2, VMQ_FLT_SIZE = 4 };
 
 // Debug Flags
 int DEBUG;
