@@ -21,7 +21,7 @@ void evalFuncCall(struct AST_node* a);
 unsigned int evalAddOp(struct AST_node* a);
 unsigned int evalMulOp(struct AST_node* a);
 
-inline unsigned int getNewTempVar(unsigned int type)
+static inline unsigned int getNewTempVar(unsigned int type)
 {
     unsigned int* cur_addr = &CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int* cur_size = &CURRENT_FUNC->VMQ_data.tempvar_cur_size;
@@ -113,7 +113,7 @@ Case 4:  Adding float tempvar, no temporary variables are in use - starting addr
     return *cur_addr;
 }
 
-inline void restoreTempVarState(unsigned int addr, unsigned int size)
+static inline void restoreTempVarState(unsigned int addr, unsigned int size)
 {
     CURRENT_FUNC->VMQ_data.tempvar_cur_addr = addr;
     CURRENT_FUNC->VMQ_data.tempvar_cur_size = size;
