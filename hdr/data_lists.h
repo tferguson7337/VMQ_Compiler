@@ -38,7 +38,7 @@ struct VMQ_list_node
 struct VMQ_temp_node
 {
     unsigned int VMQ_loc;
-    unsigned int data_type;
+    unsigned int type;
     struct VMQ_temp_node* next;
 };
 
@@ -54,7 +54,7 @@ typedef struct flt_list_node* FLT_LIST;
 typedef struct var_list_node* VAR_LIST;
 typedef struct str_list_node* STR_LIST;
 typedef struct VMQ_list_node* VMQ_LIST;
-typedef struct VMQ_temp_node* TEMP_LIST;
+typedef struct VMQ_temp_node* TEMP_STACK;
 typedef struct VMQ_mem_node*  VMQ_MEM_LIST;
 
 struct VMQ_func_data
@@ -68,6 +68,7 @@ struct VMQ_func_data
     unsigned int tempvar_cur_addr;	// Tracks the base addr of the lastest temporary variable currently in use.
     unsigned int tempvar_cur_size;	// Tracks the amount of space currently in use by temporary variables, in bytes.
     unsigned int tempvar_max_size;	// Max size of temporary variables required by function, in bytes.
+    TEMP_STACK tempvar_stack_head;	// Tracks the temporary variables that are currently in use, for VMQ memory management purposes.
 };
 
 struct func_list_node
@@ -94,6 +95,8 @@ struct var_list_node* appendToVarList(int var_type, char* var_name);
 struct var_list_node* appendToParamList(int var_type, char* var_name);
 struct VMQ_list_node* appendToVMQList(char* VMQ_line);
 struct func_list_node* appendToFuncList(int return_type, char* func_name);
+void pushTempVar(unsigned int type);
+void popTempVar();
 struct VMQ_mem_node*  appendToVMQMemList(int nodetype, void* node);
 
 #endif

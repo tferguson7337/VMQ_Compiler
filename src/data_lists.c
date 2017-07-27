@@ -173,12 +173,13 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 
 struct VMQ_list_node* appendToVMQList(char* VMQ_line)
 {
+/*    
     if(DEBUG)
     {
 	printf("appendToVMQList() - VMQ_line == \"%s\"\n", VMQ_line);
 	fflush(stdout);
     }
-
+*/
     if(!CURRENT_FUNC)
 	yyerror("appendToVMQList() - CURRENT_FUNC is NULL, cannot append VMQ statement");
 
@@ -217,10 +218,58 @@ struct func_list_node* appendToFuncList(int return_type, char* func_name)
     tempVMQ->stmt_count = 0;
     tempVMQ->quad_start_line = tempVMQ->quad_end_line = 1;
     tempVMQ->tempvar_max_size = 0;
+    tempVMQ->tempvar_stack_head = NULL;
 
     temp->next = NULL;
 
     return temp;
+}
+
+void pushTempVar(unsigned int type)
+{
+    struct func_list_node* func = CURRENT_FUNC;
+    if(!func)
+	yyerror("ERROR - pushTempVar() funtion pointer is NULL");
+
+    struct VMQ_temp_node* pvtn;
+    if(!func->VMQ_data.tempvar_stack_head)
+    {
+	pvtn = func->VMQ_data.tempvar_stack_head = malloc(sizeof(struct VMQ_temp_node));
+	if(!pvtn)
+	    yyerror("ERROR - pushTempVar() memory allocation failed");
+
+	pvtn->VMQ_loc = func->VMQ_data.tempvar_cur_addr;
+	pvtn->type = type;
+	pvtn->next = NULL;
+    }
+    else
+    {
+	pvtn = malloc(sizeof(struct VMQ_temp_node));
+	if(!pvtn)
+	    yyerror("ERROR - pushTempVar() memory allocation failed");
+
+	pvtn->VMQ_loc = func->VMQ_data.tempvar_cur_addr;
+	pvtn->type = type;
+	pvtn->next = func->VMQ_data.tempvar_stack_head;
+	func->VMQ_data.tempvar_stack_head = pvtn;
+    }
+}
+
+void popTempVar()
+{
+    struct func_list_node* func = CURRENT_FUNC;
+    if(!func)
+	yyerror("ERROR - popTempVar() function pointer is NULL");
+
+    struct VMQ_temp_node* pvtn;
+    if(!func->VMQ_data.tempvar_stack_head)
+	yyerror("ERROR - popTempVar() pop attempt on empty stack");
+    else
+    {
+	pvtn = func->VMQ_data.tempvar_stack_head;
+	func->VMQ_data.tempvar_stack_head = func->VMQ_data.tempvar_stack_head->next;
+	free(pvtn);
+    }
 }
 
 struct VMQ_mem_node* appendToVMQMemList(int nodetype, void* node)
