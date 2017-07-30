@@ -64,4 +64,6 @@ void dumpGlobalDataLists();
 
 char* nodeTypeToString(int nodetype);
 
+void dumpTempVarStack();
+
 #endif

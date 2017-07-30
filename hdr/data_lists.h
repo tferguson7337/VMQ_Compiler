@@ -69,6 +69,7 @@ struct VMQ_func_data
     unsigned int tempvar_cur_size;	// Tracks the amount of space currently in use by temporary variables, in bytes.
     unsigned int tempvar_max_size;	// Max size of temporary variables required by function, in bytes.
     TEMP_STACK tempvar_stack_head;	// Tracks the temporary variables that are currently in use, for VMQ memory management purposes.
+    struct VMQ_temp_node math_result;	// Used to store information regarding the result of math ops, for evaluating ADDOPs and MULOPs.
 };
 
 struct func_list_node

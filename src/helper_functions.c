@@ -36,11 +36,16 @@ void configureGlobalMemorySpace()
 *
 *   000 0	    ; Literal integer of value 0, stored at addr 000, represents FALSE
 *   002 1	    ; Literal integer of value 1, stored at addr 002, represents TRUE
-*   004 <flt_val>   ; Literal float values will be stored after initial TRUE and FALSE
-*   008 <flt_var>   ; Space for any float variables comes after literal floats
-*   012 <int_val>   ; Literal integer values will be stored after float values
-*   014 <int_var>   ; Space for any integer variables comes after literal integers
-*   016 <str_val>   ; Literal string values will be stored after integer values
+*   004 2	    ; Literal integer of value 2, stored at addr 004, represents size of INT
+*   006 4	    ; Literal integer of value 4, stored at addr 006, represents size of FLOAT
+*   008 <flt_val>   ; Literal float values will be stored after initial TRUE and FALSE
+*   012 <flt_var>   ; Space for any float variables comes after literal floats
+*   016 <int_val>   ; Literal integer values will be stored after float values
+*   018 <int_var>   ; Space for any integer variables comes after literal integers
+*   020 <str_val>   ; Literal string values will be stored after integer values
+*   .	.   .	.
+*   .	.   .	.
+*   .	.   .	.
 *
 *   Per VMQ Specifications...
 *
@@ -52,12 +57,17 @@ void configureGlobalMemorySpace()
 
     if(DEBUG) { printf("CONFIGURING GLOBAL MEMORY SPACE..."); fflush(stdout); }
 
-    // Literal ints 0 and 1 will always be in the int list - set their addrs first.
-    INT_LIST_HEAD->pil->VMQ_loc = 0;	    appendToVMQMemList(INT_LITERAL, INT_LIST_HEAD);
-    INT_LIST_HEAD->next->pil->VMQ_loc = 2;  appendToVMQMemList(INT_LITERAL, INT_LIST_HEAD->next);
-    
-    unsigned int mem_addr = 4;
+    unsigned int mem_addr;
 
+    // Literal ints 0, 1, 2, and 4 will always be in the int list - set their addrs first.
+    struct int_list_node* piln = INT_LIST_HEAD;
+    for(mem_addr = 0; mem_addr != 8; mem_addr += VMQ_INT_SIZE)
+    {
+	piln->pil->VMQ_loc = mem_addr;
+	appendToVMQMemList(INT_LITERAL, piln);
+	piln = piln->next;
+    }
+    
     // Literal floats come next.
     struct flt_list_node* pfln = FLT_LIST_HEAD;
     while(pfln)
@@ -85,7 +95,6 @@ void configureGlobalMemorySpace()
     }
 
     // Literal integers come next - recall that first two list elements were already handled.
-    struct int_list_node* piln = INT_LIST_HEAD->next->next;
     while(piln)
     {
 	piln->pil->VMQ_loc = mem_addr;
@@ -134,8 +143,9 @@ void configureLocalMemorySpaces()
 	// If a function has no params and no local variables, skip to next function.
 	if(!CURRENT_FUNC->param_list_head && !CURRENT_FUNC->var_list_head)
 	{
-	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 2;
-	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 4;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
 
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue;
@@ -164,8 +174,9 @@ void configureLocalMemorySpaces()
 	
 	if(!list_ptr)
 	{ 
-	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 2;
-	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 4;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
 	    
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue; 
@@ -184,7 +195,7 @@ void configureLocalMemorySpaces()
 	    if(v->var_type == INT && v->size % 2)
 	    {
 		prev_node = list_ptr;
-		vref->VMQ_loc = 2 * v->size;
+		vref->VMQ_loc = 2 * v->size + 2;
 		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		break;
 	    }
@@ -200,7 +211,7 @@ void configureLocalMemorySpaces()
 
 	    // Do the first variable so we can use prev_node in the loop
 	    list_ptr = CURRENT_FUNC->var_list_head;
-	    list_ptr->pvr->VMQ_loc = 2;
+	    list_ptr->pvr->VMQ_loc = 4;
 	    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 	    prev_node = list_ptr;
 	    list_ptr = list_ptr->next;
@@ -276,12 +287,12 @@ void configureLocalMemorySpaces()
 
 	unsigned int temp_start;
 	if(prev_node->pvr->val->var_type == INT)
-	    temp_start = prev_node->pvr->VMQ_loc + VMQ_INT_SIZE;
+	    temp_start = prev_node->pvr->VMQ_loc + VMQ_INT_SIZE + VMQ_ADDR_SIZE;
 	else
-	    temp_start = prev_node->pvr->VMQ_loc + VMQ_FLT_SIZE;
+	    temp_start = prev_node->pvr->VMQ_loc + VMQ_FLT_SIZE + VMQ_ADDR_SIZE;
 
 	CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = temp_start;
-	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
+	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
 
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }
@@ -549,6 +560,37 @@ char* nodeTypeToString(int nodetype)
 	case ARR_ACCESS:    str = "ARR_ACCESS"; break;
 	default:	    str = "!!UNKNOWN!!";
     }
+    
+    if(strcmp(str, "!!UNKNOWN!!") == 0)
+	printf("(%d)", nodetype);
 
     return str;
+}
+
+void dumpTempVarStack()
+{
+    struct VMQ_func_data* VMQ = &CURRENT_FUNC->VMQ_data;
+    struct VMQ_temp_node* stack_ptr = VMQ->tempvar_stack_head;
+
+    unsigned int arr_size = 64;
+    char separator[arr_size];
+    for(int i = 0; i < arr_size - 1; i++)
+	separator[i] = '=';
+
+    separator[arr_size - 1] = '\0';
+
+    printf("\nDumping Stack\n");
+    printf("%s\n", separator);
+    while(stack_ptr)
+    {
+	printf("/-%d(%s) -> ", stack_ptr->VMQ_loc, nodeTypeToString(stack_ptr->type));
+	stack_ptr = stack_ptr->next;
+    }
+    printf("NULL\n");
+
+    printf("\tcur_addr == %d || cur_size == %d\n", VMQ->tempvar_cur_addr, VMQ->tempvar_cur_size - VMQ_ADDR_SIZE);
+    
+    printf("%s\n\n", separator);
+
+    fflush(stdout);
 }

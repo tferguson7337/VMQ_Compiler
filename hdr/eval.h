@@ -17,10 +17,10 @@ void evalInput(struct AST_node* a);
 void evalOutput(struct AST_node* a);
 void evalAssignOp(struct AST_node* a);
 void evalIncOp(struct AST_node* a);
-unsigned int evalArrAccess(struct AST_node* a);
+void evalArrAccess(struct AST_node* a);
 void evalFuncCall(struct AST_node* a);
-unsigned int evalAddOp(struct AST_node* a);
-unsigned int evalMulOp(struct AST_node* a);
+void evalAddOp(struct AST_node* a);
+void evalMulOp(struct AST_node* a);
 
 static inline unsigned int getNewTempVar(unsigned int type)
 {
@@ -33,21 +33,21 @@ static inline unsigned int getNewTempVar(unsigned int type)
 	*cur_size += VMQ_INT_SIZE;
 	
 	// If cur_size was zero before the above op, don't change cur_addr (it is already set to the correct addr)
-	if(*cur_size - VMQ_INT_SIZE)
+	if(*cur_size - VMQ_INT_SIZE - 2)
 	    *cur_addr += VMQ_INT_SIZE;    
     }
     else if(type == ADDR)
     {	// VMQ addresses are 16 bits (2 bytes)
 	*cur_size += VMQ_ADDR_SIZE;
 	
-	if(*cur_size - VMQ_ADDR_SIZE)
+	if(*cur_size - VMQ_ADDR_SIZE - 2)
 	    *cur_addr += VMQ_ADDR_SIZE;
     }
     else if(type == FLOAT)
     {	// VMQ floats are 32 bits (4 bytes)
-	if(*cur_size)
+	if(*cur_size - 2)
 	{
-	    *cur_size += (*cur_addr % VMQ_FLT_SIZE) ? VMQ_FLT_SIZE : VMQ_ADDR_SIZE + VMQ_FLT_SIZE;
+	    *cur_size += (*cur_addr % VMQ_FLT_SIZE) ? VMQ_ADDR_SIZE + VMQ_FLT_SIZE : VMQ_FLT_SIZE;
 	    *cur_addr += (*cur_addr % VMQ_FLT_SIZE) ? (*cur_addr % VMQ_FLT_SIZE) : VMQ_FLT_SIZE;
 	}
 	else // No temporary variables are current in use
@@ -114,8 +114,8 @@ Case 4:  Adding float tempvar, no temporary variables are in use - starting addr
     // Push the newly "allocated" temporary variable onto the temporary variable stack.
     pushTempVar(type);
 
-    printf("getNewTempVar() - cur_addr == %d || cur_size == %d\n", *cur_addr, *cur_size);
-    fflush(stdout);
+    if(DEBUG)
+	dumpTempVarStack();
 
     return *cur_addr;
 }
@@ -124,48 +124,50 @@ static inline void freeTempVar()
 {
     unsigned int* cur_addr = &CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int* cur_size = &CURRENT_FUNC->VMQ_data.tempvar_cur_size;
-    
-    struct VMQ_temp_node* stack_ptr = CURRENT_FUNC->VMQ_data.tempvar_stack_head;
-    if(!stack_ptr)
+    unsigned int new_addr, new_size;
+
+    struct VMQ_temp_node** stack_ptr = &CURRENT_FUNC->VMQ_data.tempvar_stack_head;
+    unsigned int old_type, new_type;
+
+    if(!(*stack_ptr))
 	yyerror("ERROR - freeTempVar():  Deallocation attempted on non-existant temporary variable");
-
-    unsigned int type = stack_ptr->type;
-
-    if(*cur_size == 0)
-	return;
-
-    if(type == INT)
+    else
     {
-	if(*cur_addr != CURRENT_FUNC->VMQ_data.tempvar_start)
-	    *cur_addr -= VMQ_INT_SIZE;
+	old_type = (*stack_ptr)->type;
+	
+	popTempVar();
+
+	if(stack_ptr && *stack_ptr)
+	    new_type = (*stack_ptr)->type;
+	else
+	    new_type = 0;
+    }
+
+    if(stack_ptr && *stack_ptr)
+	new_addr = (*stack_ptr)->VMQ_loc;
+    else
+	new_addr = CURRENT_FUNC->VMQ_data.tempvar_start;
+
+    *cur_addr = new_addr;
+    if(old_type == INT)
 	*cur_size -= VMQ_INT_SIZE;
-    }
-    else if(type == ADDR)
-    {
-	if(*cur_addr != CURRENT_FUNC->VMQ_data.tempvar_start)
-	    *cur_addr -= VMQ_ADDR_SIZE;
+    else if(old_type == ADDR)
 	*cur_size -= VMQ_ADDR_SIZE;
-    }
-    else if(type == FLOAT)
+    else
     {
-	if(*cur_addr != CURRENT_FUNC->VMQ_data.tempvar_start)
-	    *cur_addr -= VMQ_FLT_SIZE;
+	if(new_type == INT && (new_addr % VMQ_FLT_SIZE == 0))
+	    *cur_size -= VMQ_ADDR_SIZE;
+
 	*cur_size -= VMQ_FLT_SIZE;
     }
 
-    popTempVar();
-
-    printf("freeTempVar() - cur_addr == %d || cur_size == %d\n", *cur_addr, *cur_size);
-    fflush(stdout);
+    if(DEBUG)
+	dumpTempVarStack();
 }
 
 static inline int isMathLeaf(unsigned int type)
 {
-    if(type == INT_LITERAL 
-       || type == FLT_LITERAL
-       || type == VAR_ACCESS 
-       || type == ARR_ACCESS
-       || type == FUNC_CALL)
+    if(type == INT_LITERAL || type == FLT_LITERAL || type == VAR_ACCESS || type == ARR_ACCESS)
 	return 1;
     else
 	return 0;

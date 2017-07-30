@@ -1,6 +1,6 @@
 #include <iostream>
 
-int x;
+int x[2];
 
 int test(int y)
 {
@@ -8,10 +8,10 @@ int test(int y)
 
 	cout << "Enter in three return-separated integer values: ";
 
-	cin >> local >> x >> y;
+	cin >> local >> x[0] >> y;
 
 	cout << "TEST: local = " << local << endl;
-	cout << "TEST: x = " << x << endl;
+	cout << "TEST: x[0] = " << x[0] << endl;
 	cout << "TEST: y = " << y << endl;
 
 	cout << "Function test is returning local variable" << endl;
@@ -25,17 +25,18 @@ int main()
 
 	cout << "Enter two return-separated integer values: ";
 	
-	cin >> x >> y;
+	cin >> x[0] >> y;
 
-	cout << "MAIN: x = " << x << endl;
+	cout << "MAIN: x[0] = " << x[0] << endl;
 
 	cout << "MAIN: y = " << y << endl;
 
-	cout << endl << "Calling test, passing y, assigning to x" << endl;
+	cout << endl << "Calling test, passing y, assigning to x[0]" << endl;
 
-	x = test(y);
+	x[1] = test(y);
 
-	cout << "Returned from test, x = " << x << " | y = " << y << endl;	
+	cout << "Returned from test:\t";
+	cout << "x[0] = " << x[0] <<  " | x[1] = " << x[1] << " | y = " << y << endl;	
 
 	return 0;	
 

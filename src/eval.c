@@ -74,10 +74,13 @@ void eval(struct AST_node* a)
 			    // local memory.
 			    appendToVMQList("");
 
-			    eval(a->l); eval(a->r);
+			  //eval(a->l);
+			    eval(a->r);
 			    
 			    // Modify the placeholder line created above.
-			    sprintf(CURRENT_FUNC->VMQ_data.stmt_list_head->VMQ_line, "# %d", CURRENT_FUNC->var_total_size + CURRENT_FUNC->VMQ_data.tempvar_max_size); 
+			    unsigned int total_size = CURRENT_FUNC->var_total_size + CURRENT_FUNC->VMQ_data.tempvar_max_size;
+
+			    sprintf(CURRENT_FUNC->VMQ_data.stmt_list_head->VMQ_line, "# %d", total_size); 
 			    
 			    if(strcmp(CURRENT_FUNC->func_name, "main") == 0)
 				appendToVMQList("h");	// Program ends after returning from main().
@@ -87,7 +90,8 @@ void eval(struct AST_node* a)
 			    break;
 
 	case PROG:	    CURRENT_FUNC = NULL;
-			    eval(a->l);	eval(a->r);
+			  //eval(a->l);  
+			    eval(a->r);
 			    break;
 
 	// All other non-terminal cases are traversed.
@@ -105,19 +109,21 @@ void evalReturn(struct AST_node* a)
     struct var* v = NULL;
     struct varref* vnode = NULL;
     struct func_list_node* func = NULL;
-    unsigned int result_type = 0;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
     unsigned int temp_addr;
-    
+
     switch(a->nodetype)
     {	
-	// left child of RETURN node is any type of expression || right child is guaranteed to be NULL
+	// left child of RETURN node is any type of expression, right child is guaranteed to be NULL
 	case RETURN:	    evalReturn(a->l); break;
 	
 	// Insert variable's value into correct return value memory space
 	case ASSIGNOP:	
 	case ADD_ASSIGN:    
-	case SUB_ASSIGN:    if(a->nodetype == ASSIGNOP)	evalAssignOp(a);
-			    else			evalIncOp(a);
+	case SUB_ASSIGN:    if(a->nodetype == ASSIGNOP)
+				evalAssignOp(a);
+			    else
+				evalIncOp(a);
 
 			    VMQ_line = malloc(32);
 			    
@@ -157,30 +163,25 @@ void evalReturn(struct AST_node* a)
 	case SUB:
 	case MUL:
 	case DIV:
-	case MOD:	    if(a->nodetype == ADD || a->nodetype == SUB)    result_type = evalAddOp(a);
-			    else					    result_type = evalMulOp(a);
+	case MOD:	    if(a->nodetype == ADD || a->nodetype == SUB)
+				evalAddOp(a);
+			    else
+				evalMulOp(a);
 
-			    // Result of math op will be stored in first temporary variable
-			    temp_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
-			    if(result_type == INT)
+			    if(result->type == INT)
 				op_code = 'i';
-			    else // result_type == FLOAT
-			    {
+			    else // result->type == FLOAT
 				op_code = 'I';
-				// Result of math op is a float - adjust temp_addr to appropriate position if needed.
-				if(temp_addr % VMQ_FLT_SIZE)
-				    temp_addr += (temp_addr % VMQ_FLT_SIZE);
-			    }
 
 			    VMQ_line = malloc(32);
-			    sprintf(VMQ_line, "%c /-%d @/4", op_code, temp_addr);
+			    sprintf(VMQ_line, "%c /-%d @/4", op_code, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 	
 			    break;
 
 	// Insert variable's value into correct return value memory space.
-	VAR_ACCESS:	    vnode = ((struct var_node*)a)->val;
+	case VAR_ACCESS:    vnode = ((struct var_node*)a)->val;
 			    v = vnode->val;
 
 			    if(v->var_type == INT)  op_code = 'i';
@@ -198,21 +199,21 @@ void evalReturn(struct AST_node* a)
 			    break;
 	
 	// Insert return value of function call into return value memory space of current function.
-	FUNC_CALL:	    evalFuncCall(a);
+	case FUNC_CALL:	    evalFuncCall(a);
 			    func = ((struct func_node*)a->l)->val;
 
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "c @/4 %d", func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
-			    sprintf(VMQ_line, "^ %d", func->param_count * 2);
+			    sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 
 			    break;
 
 	// Insert address of literal integer or float into return value memory space.
-	INT_LITERAL:
-	FLT_LITERAL:	    VMQ_line = malloc(32);
+	case INT_LITERAL:
+	case FLT_LITERAL:   VMQ_line = malloc(32);
 			    if(a->nodetype == INT_LITERAL)
 				sprintf(VMQ_line, "i %d @/4", ((struct int_node*)a)->val->VMQ_loc);
 			    else
@@ -224,7 +225,7 @@ void evalReturn(struct AST_node* a)
 			    break;
 
 	// Insert address of array element into return value memory space.
-	ARR_ACCESS:	    evalArrAccess(a);
+	case ARR_ACCESS:    evalArrAccess(a);
 
 			    vnode = ((struct var_node*)a->l)->val;
 			    v = vnode->val;
@@ -232,10 +233,8 @@ void evalReturn(struct AST_node* a)
 			    if(v->var_type == INT)  op_code = 'i';
 			    else		    op_code = 'I';
 
-			    temp_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
-			    
 			    VMQ_line = malloc(32);
-			    sprintf(VMQ_line, "%c @/-%d @/4", op_code, temp_addr);
+			    sprintf(VMQ_line, "%c @/-%d @/4", op_code, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 
@@ -262,6 +261,7 @@ void evalInput(struct AST_node* a)
     struct var* v = NULL;
     struct varref* vnode = NULL;
     unsigned int result_type = 0;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
 
     unsigned int orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
@@ -292,7 +292,7 @@ void evalInput(struct AST_node* a)
 			    vnode = ((struct var_node*)a->r->l)->val;
 			    v = vnode->val;
 			    
-			    sprintf(VMQ_line, "p /-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
+			    sprintf(VMQ_line, "p /-%d", result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			}
 
@@ -318,7 +318,9 @@ void evalOutput(struct AST_node* a)
     char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
     struct var* v = NULL;
     struct varref* vnode = NULL;
-    unsigned int result_type = 0;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
+    struct func_list_node* func = NULL;
+    unsigned int temp_addr;
 
     unsigned int orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
@@ -361,16 +363,50 @@ void evalOutput(struct AST_node* a)
 	// Output value of variable, possibly used in ASSIGNOP/INCOP expression
 	case ASSIGNOP:	    
 	case ADD_ASSIGN:
-	case SUB_ASSIGN:    if(a->nodetype == ASSIGNOP) evalAssignOp(a);
-			    else			evalIncOp(a);
-	case VAR_ACCESS:    
-			    vnode = ((struct varref*)a->l);
-			    v = vnode->val;
+	case SUB_ASSIGN:    if(a->nodetype == ASSIGNOP)
+				evalAssignOp(a);
+			    else
+				evalIncOp(a);
+	case VAR_ACCESS:
+	case ARR_ACCESS:    if(a->nodetype == VAR_ACCESS)
+			    {
+				vnode = ((struct var_node*)a)->val;
+				v = vnode->val;
+			    }
+			    else if(a->nodetype == ARR_ACCESS)
+			    {
+				vnode = ((struct var_node*)a->l)->val;
+				v = vnode->val;
+
+				evalArrAccess(a);
+			    }
+			    else // a->nodetype == ASSIGNOP || ADD_ASSIGN || SUB_ASSIGN
+			    {
+				if(a->l->nodetype == VAR_ACCESS)
+				{
+				    vnode = ((struct var_node*)a->l)->val;
+				    v = vnode->val;
+				}
+				else // a->l->nodetype == ARR_ACCESS
+				{
+				    vnode = ((struct var_node*)a->l->l)->val;
+				    v = vnode->val;
+				}
+			    }
+			    
 			    VMQ_line = malloc(32);
-			    if(v->isGlobal)	VMQ_addr_prefix = "#";
-			    else if(v->isParam)	VMQ_addr_prefix = "/";
-			    else		VMQ_addr_prefix = "#/-";
-			    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, vnode->VMQ_loc);
+			    
+			    if(v->size == 1)
+			    {
+				if(v->isGlobal)	    VMQ_addr_prefix = "#";
+				else if(v->isParam) VMQ_addr_prefix = "/";
+				else		    VMQ_addr_prefix = "#/-";
+
+				sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, vnode->VMQ_loc);
+			    }
+			    else // v->size > 1 (i.e., var is an array element)
+				sprintf(VMQ_line, "p /-%d", result->VMQ_loc);
+				
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 			    if(v->var_type == INT)  appendToVMQList("c 0 -9");
@@ -379,89 +415,63 @@ void evalOutput(struct AST_node* a)
 			    break;
 			    
 	// Output result of math operation.
-	case ADD:	    // The result of any calculation not being assigned to
-	case SUB:	    // a variable is stored in the first temporary variable. 
+	case ADD:
+	case SUB:
 	case MUL:	    
 	case DIV:	    
-	case MOD:	    if(a->nodetype == ADD || a->nodetype == SUB)    result_type = evalAddOp(a);
-			    else					    result_type = evalMulOp(a);
-
-			    if(result_type == INT)
-			    {
-				VMQ_line = malloc(32);
-				sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
-				appendToVMQList(VMQ_line);
-				free(VMQ_line);
+	case MOD:	    if(a->nodetype == ADD || a->nodetype == SUB)
+				evalAddOp(a);
+			    else
+				evalMulOp(a);
+	    
+			    VMQ_line = malloc(32);
+			    sprintf(VMQ_line, "p #/-%d", result->VMQ_loc);
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+			    
+			    if(result->type == INT)
 				appendToVMQList("c 0 -9");
-				appendToVMQList("^ 2");
-			    }
-			    else    // result of calculation is stored as a float.
-			    {
-				VMQ_line = malloc(32);
-				if(CURRENT_FUNC->VMQ_data.tempvar_cur_addr % 4 == 0)
-				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
-				else
-				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr + 2);
-				appendToVMQList(VMQ_line);
-				free(VMQ_line);
+			    else
 				appendToVMQList("c 0 -10");
-				appendToVMQList("^ 2");
-			    }
+
+			    appendToVMQList("^ 2");
+
 			    break;
 
 	// Output return value of function call.
 	case FUNC_CALL:	    evalFuncCall(a);
-			    if(CURRENT_FUNC->return_type == INT)
-			    {
-				VMQ_line = malloc(32);
-				sprintf(VMQ_line, "c #/-%d %d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr, ((struct func_node*)a->l)->val->VMQ_data.quad_start_line);
-				appendToVMQList(VMQ_line);
-				sprintf(VMQ_line, "^ %d", ((struct func_node*)a->l)->val->param_count * 2);
-				appendToVMQList(VMQ_line);
-				sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
-				appendToVMQList(VMQ_line);
-				appendToVMQList("c 0 -9");
-				appendToVMQList("^ 2");
-				free(VMQ_line);
-			    }
+			    func = ((struct func_node*)a)->val;
+			    
+			    // Store return value of function into a temporary variable.
+			    if(func->return_type == INT)
+				temp_addr = getNewTempVar(INT);
 			    else
-			    {
-				VMQ_line = malloc(32);
-				sprintf(VMQ_line, "c /-%d %d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr, ((struct func_node*)a)->val->VMQ_data.quad_start_line);
-				appendToVMQList(VMQ_line);
-				sprintf(VMQ_line, "^ %d", ((struct func_node*)a)->val->param_count * 2);
-				appendToVMQList(VMQ_line);
-				if(CURRENT_FUNC->VMQ_data.tempvar_cur_addr % 4 == 0)
-				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
-				else
-				    sprintf(VMQ_line, "p #/-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr + 2);
-				appendToVMQList(VMQ_line);
-				appendToVMQList("c 0 -10");
-				appendToVMQList("^ 2");
-				free(VMQ_line);
-			    }
+				temp_addr = getNewTempVar(FLOAT);
 
-			    break;
-
-	// Output value of array element.
-	case ARR_ACCESS:    evalArrAccess(a); // evalArrAccess places the address of the array element into the current temporary variable. 
 			    VMQ_line = malloc(32);
-			    sprintf(VMQ_line, "p /-%d", CURRENT_FUNC->VMQ_data.tempvar_cur_addr);
+			    sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
-			    if(((struct var_node*)a->l)->val->val->var_type == INT)
+			    sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
+			    appendToVMQList(VMQ_line);
+			    sprintf(VMQ_line, "p #/-%d", temp_addr);
+			    appendToVMQList(VMQ_line);
+			    free(VMQ_line);
+
+			    freeTempVar();
+			    
+			    if(func->return_type == INT)
 				appendToVMQList("c 0 -9");
 			    else
 				appendToVMQList("c 0 -10");
 			    appendToVMQList("^ 2");
-			    free(VMQ_line);
-
+			    
 			    break;
 
 	// No other nodetypes should be encountered - output error and quit if one is encountered.
 	default:	    yyerror("evalOutput() - Unknown nodetype encountered"); exit(-1);
     }
 
-    while(CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
+    while(orig_size != CURRENT_FUNC->VMQ_data.tempvar_cur_size)
 	freeTempVar();
 }
 
@@ -480,7 +490,7 @@ void evalAssignOp(struct AST_node* a)
     struct intlit* r_int = NULL;
     struct fltlit* r_flt = NULL;
     struct func_list_node* func = NULL;
-    unsigned int result_type = 0;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
 
     int ntype = a->r->nodetype;
 
@@ -488,7 +498,7 @@ void evalAssignOp(struct AST_node* a)
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
     unsigned int lhs_addr, rhs_addr;
 
-    // Get the VMQ location values and pointers to the right data structures set up for LHS of ASSIGN_OP
+    // Get the VMQ location values and pointers to the right data structures set up for the LHS of ASSIGN_OP
     if(a->l->nodetype == VAR_ACCESS)
     {
 	l_node = ((struct var_node*)a->l)->val;
@@ -517,8 +527,10 @@ void evalAssignOp(struct AST_node* a)
 	// Place value of right child into left child (variable).
 	case ASSIGNOP:	    
 	case ADD_ASSIGN:
-	case SUB_ASSIGN:    if(ntype == ASSIGNOP)   evalAssignOp(a->r);
-			    else		    evalIncOp(a->r);
+	case SUB_ASSIGN:    if(ntype == ASSIGNOP)   
+				evalAssignOp(a->r);
+			    else
+				evalIncOp(a->r);
 
 			    if(a->r->l->nodetype == VAR_ACCESS)
 			    {
@@ -546,12 +558,19 @@ void evalAssignOp(struct AST_node* a)
 			    else if (l_val->var_type == INT && r_val->var_type == FLOAT)    op_code = 'f';
 			    else							    op_code = 'F';			    
 
-			    if(a->l->nodetype == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+			    if(a->l->nodetype == ARR_ACCESS)
+			    {
+				evalArrAccess(a->l);
+				lhs_addr = result->VMQ_loc;
+			    }
 
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "%c %s%d %s%d", op_code, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
+
+			    if(a->r->l->nodetype == ARR_ACCESS)
+				freeTempVar();
 
 			    break;
 	
@@ -570,7 +589,11 @@ void evalAssignOp(struct AST_node* a)
 				else				op_code = 'I';
 			    }
 
-			    if(a->l->nodetype == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+			    if(a->l->nodetype == ARR_ACCESS)
+			    {
+				evalArrAccess(a->l);
+				lhs_addr = result->VMQ_loc;
+			    }
 
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "%c %d %s%d", op_code, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
@@ -598,7 +621,11 @@ void evalAssignOp(struct AST_node* a)
 			    else if(r_val->isParam) VMQ_addr_r_prefix = "@/";
 			    else		    VMQ_addr_r_prefix = "/-";
 
-			    if(a->l->nodetype == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+			    if(a->l->nodetype == ARR_ACCESS)
+			    {
+				evalArrAccess(a->l);
+				lhs_addr = result->VMQ_loc;
+			    }
 
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "%c %s%d %s%d", op_code, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
@@ -612,19 +639,29 @@ void evalAssignOp(struct AST_node* a)
 	case SUB:
 	case MUL:
 	case DIV:
-	case MOD:	    if(a->l->nodetype == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+	case MOD:	    if(a->l->nodetype == ARR_ACCESS)
+			    {
+				evalArrAccess(a->l);
 
-			    if(ntype == ADD || ntype == SUB)	result_type = evalAddOp(a->r);
-			    else				result_type = evalMulOp(a->r);
+				// We call getNewTempVar here to keep the result of the math op
+				// below from overwritting the address stored from the ARR_ACCESS
+				// evaluation just above.
+				lhs_addr = getNewTempVar(ADDR);
+			    }
 
-			    rhs_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
+			    if(ntype == ADD || ntype == SUB)
+				evalAddOp(a->r);
+			    else
+				evalMulOp(a->r);
 
-			    if(result_type == INT)
+			    rhs_addr = result->VMQ_loc;
+
+			    if(result->type == INT)
 			    {
 				if(l_val->var_type == INT)	op_code = 'i';
 				else				op_code = 'F';
 			    }
-			    else    // result_type == FLOAT
+			    else // result->type == FLOAT
 			    {
 				if(l_val->var_type == FLOAT)	op_code = 'I';
 				else				op_code = 'f';
@@ -635,11 +672,16 @@ void evalAssignOp(struct AST_node* a)
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 
+			    if(a->l->nodetype == ARR_ACCESS)
+				freeTempVar();
+
 			    break;
 	
 	// Place value of array element into l_val variable.
-	case ARR_ACCESS:    lhs_addr = evalArrAccess(a->l);
-			    rhs_addr = evalArrAccess(a->r);
+	case ARR_ACCESS:    evalArrAccess(a->l);
+			    lhs_addr = getNewTempVar(ADDR);
+			    evalArrAccess(a->r);
+			    rhs_addr = getNewTempVar(ADDR);
 			    // evalArrAccess will write the commands that store the address of the array element in the first temporary variable.
 			    
 			    r_node = ((struct var_node*)a->r->l)->val;
@@ -661,10 +703,25 @@ void evalAssignOp(struct AST_node* a)
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 
+			    freeTempVar();
+			    freeTempVar();
+
 			    break;
 
 	// Place return value of function into l_val variable.
-	case FUNC_CALL:	    if(a->l->nodetype == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+	case FUNC_CALL:	    if(a->l->nodetype == ARR_ACCESS)	
+			    {
+				evalArrAccess(a->l);
+				lhs_addr = getNewTempVar(ADDR);
+				VMQ_addr_l_prefix = "/-";
+			    }
+			    else    // Function semantics are a bit different, so adjust memory access mode as needed.
+			    {
+				if(l_val->isGlobal)	VMQ_addr_l_prefix = "#";
+				else if(l_val->isParam)	VMQ_addr_l_prefix = "/";
+				else			VMQ_addr_l_prefix = "#/-";
+			    }
+
 			    evalFuncCall(a->r); // Generates the appropriate statements for pushing variables onto the stack for passing.
 			    func = ((struct func_node*)a->r->l)->val;
 			    
@@ -684,18 +741,25 @@ void evalAssignOp(struct AST_node* a)
 
 				unsigned int temp_addr;
 				
-				if(func->return_type == INT)	temp_addr = getNewTempVar(INT);
-				else				temp_addr = getNewTempVar(FLOAT);
+				if(func->return_type == INT)	
+				    temp_addr = getNewTempVar(INT);
+				else
+				    temp_addr = getNewTempVar(FLOAT);
 
 				VMQ_line = malloc(32);
-				sprintf(VMQ_line, "c /-%d %d", temp_addr, func->VMQ_data.quad_start_line);
+				sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
 				appendToVMQList(VMQ_line);
 				sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 				appendToVMQList(VMQ_line);
 				sprintf(VMQ_line, "%c /-%d %s%d", op_code, temp_addr, VMQ_addr_l_prefix, lhs_addr);
 				appendToVMQList(VMQ_line);
 				free(VMQ_line);
+
+				freeTempVar();
 			    }
+
+			    if(a->l->nodetype == ARR_ACCESS)
+				freeTempVar();
 			    
 			    break;
     }
@@ -715,12 +779,12 @@ void evalIncOp(struct AST_node* a)
     struct func_list_node* func = NULL;
     struct varref* l_node = NULL, *r_node = NULL;
     struct var* l_val = NULL, *r_val = NULL;
-	struct intlit* i_lit = NULL;
-	struct fltlit* f_lit = NULL;
+    struct intlit* i_lit = NULL;
+    struct fltlit* f_lit = NULL;
 
-    unsigned int result_type;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
     unsigned int lhs_type, lhs_addr, rhs_addr;
-	unsigned int temp_addr;
+    unsigned int temp_addr = 0;
 
     unsigned int orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
@@ -753,407 +817,420 @@ void evalIncOp(struct AST_node* a)
 
     switch(ntype)
     {
-		/* 
-			Cases:	ASSIGNOP, ADD_ASSIGN, SUB_ASSIGN, ADD, SUB, MUL, DIV, MOD
-					VAR_ACCESS, FUNC_CALL, INT_LITERAL, FLT_LITERAL, ARR_ACCESS
-		*/
-		case ASSIGNOP:		
-		case ADD_ASSIGN:	
-		case SUB_ASSIGN:	if(ntype == ASSIGNOP)	evalAssignOp(expr);
-							else					evalIncOp(expr);
+	/* 
+	    Cases:  ASSIGNOP, ADD_ASSIGN, SUB_ASSIGN, ADD, SUB, MUL, DIV, MOD
+		    VAR_ACCESS, FUNC_CALL, INT_LITERAL, FLT_LITERAL, ARR_ACCESS
+	*/
+	case ASSIGNOP:		
+	case ADD_ASSIGN:	
+	case SUB_ASSIGN:	if(ntype == ASSIGNOP)	
+				    evalAssignOp(expr);
+				else
+				    evalIncOp(expr);
 
-							if(expr->l->nodetype == VAR_ACCESS)
-							{
-								r_node = ((struct var_node*)expr->l)->val;
-								r_val = r_node->val;
+				if(expr->l->nodetype == VAR_ACCESS)
+				{
+				    r_node = ((struct var_node*)expr->l)->val;
+				    r_val = r_node->val;
 
-								if(r_val->isGlobal)		VMQ_addr_r_prefix = "";
-								else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
-								else					VMQ_addr_r_prefix = "/-";
+				    if(r_val->isGlobal)		VMQ_addr_r_prefix = "";
+				    else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
+				    else			VMQ_addr_r_prefix = "/-";
 
-								rhs_addr = r_node->VMQ_loc;
-							}
-							else
-							{
-								r_node = ((struct var_node*)expr->l->l)->val;
-								r_val = r_node->val;
+				    rhs_addr = r_node->VMQ_loc;
+				}
+				else // expr->l->nodetype == ARR_ACCESS
+				{
+				    r_node = ((struct var_node*)expr->l->l)->val;
+				    r_val = r_node->val;
 
-								rhs_addr = getNewTempVar(ADDR);
-								VMQ_addr_r_prefix = "@/-";
-							}
+				    rhs_addr = getNewTempVar(ADDR);
+				    VMQ_addr_r_prefix = "@/-";
+				}
 
-							if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
-							
-							VMQ_line = malloc(32);
-							if(l_val->var_type == r_val->var_type)
-							{
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-								sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
-							else	// Casting is required.
-							{
-								if(l_val->var_type == INT)
-								{
-									op_code = 'f';
-									temp_addr = getNewTempVar(INT);
-								}
-								else
-								{
-									op_code = 'F';
-									temp_addr = getNewTempVar(FLOAT);
-								}
+				VMQ_line = malloc(32);
+				if(l_val->var_type == r_val->var_type)
+				{
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_r_prefix, rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
+				    sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
+				}
+				else	// Casting is required.
+				{
+				    if(l_val->var_type == INT)
+				    {
+					op_code = 'f';
+					temp_addr = getNewTempVar(INT);
+				    }
+				    else
+				    {
+					op_code = 'F';
+					temp_addr = getNewTempVar(FLOAT);
+				    }
+
+				    sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_r_prefix, rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
 								
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
 
-							free(VMQ_line);
+				    freeTempVar();
+				}
 
-							break;
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
+				
+				if(expr->l->nodetype == ARR_ACCESS)
+				    freeTempVar();
 
-		case ADD:
-		case SUB:
-		case MUL:
-		case DIV:
-		case MOD:			if(ntype == ADD || ntype == SUB)	result_type = evalAddOp(expr);
-							else								result_type = evalMulOp(expr);
+				free(VMQ_line);
 
-							if(result_type == INT)	rhs_addr = getNewTempVar(INT);
-							else					rhs_addr = getNewTempVar(FLOAT);
+				break;
 
-							if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+	case ADD:
+	case SUB:
+	case MUL:
+	case DIV:
+	case MOD:		if(ntype == ADD || ntype == SUB)
+				    evalAddOp(expr);
+				else
+				    evalMulOp(expr);
 
-							VMQ_line = malloc(32);
-							if(l_val->var_type == result_type)
-							{
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				rhs_addr = result->VMQ_loc;
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
-							else
-							{
-								if(l_val->var_type == INT)
-									op_code = 'f';
-								else
-									op_code = 'F';
+				if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-								if(op_code == 'F' && (temp_addr % VMQ_FLT_SIZE != 0))
-									temp_addr = getNewTempVar(FLOAT);
-								else
-									temp_addr = rhs_addr;
+				VMQ_line = malloc(32);
+				if(l_val->var_type == result->type)
+				{
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								sprintf(VMQ_line, "%c /-%d /-%d", op_code, rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
+				}
+				else
+				{
+				    if(l_val->var_type == INT)
+					op_code = 'f';
+				    else
+					op_code = 'F';
 
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				    if(op_code == 'F' && (temp_addr % VMQ_FLT_SIZE != 0))
+					temp_addr = getNewTempVar(FLOAT);
+				    else
+					temp_addr = rhs_addr;
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
+				    sprintf(VMQ_line, "%c /-%d /-%d", op_code, rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
 
-							free(VMQ_line);
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-							break;
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
 
-		case VAR_ACCESS:	if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+				    if(temp_addr != rhs_addr)
+					freeTempVar();
+				}
 
-							r_node = ((struct var_node*)expr)->val;
-							r_val = r_node->val;
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 
-							rhs_addr = r_node->VMQ_loc;
+				free(VMQ_line);
 
-							if(r_val->isGlobal)		VMQ_addr_r_prefix = "";
-							else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
-							else					VMQ_addr_r_prefix = "/-";
+				break;
 
-							VMQ_line = malloc(32);
-							if(l_val->var_type == r_val->var_type)
-							{
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+	case VAR_ACCESS:	if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-								sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
-							else
-							{
-								if(l_val->var_type == INT)
-								{
-									op_code = 'f';
-									temp_addr = getNewTempVar(INT);
-								}
-								else
-								{
-									op_code = 'F';
-									temp_addr = getNewTempVar(FLOAT);
-								}
+				r_node = ((struct var_node*)expr)->val;
+				r_val = r_node->val;
 
-								sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_r_prefix, rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
+				rhs_addr = r_node->VMQ_loc;
+
+				if(r_val->isGlobal)	VMQ_addr_r_prefix = "";
+				else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
+				else			VMQ_addr_r_prefix = "/-";
+
+				VMQ_line = malloc(32);
+				if(l_val->var_type == r_val->var_type)
+				{
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
+
+				    sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
+				}
+				else
+				{
+				    if(l_val->var_type == INT)
+				    {
+					op_code = 'f';
+					temp_addr = getNewTempVar(INT);
+				    }
+				    else
+				    {
+					op_code = 'F';
+					temp_addr = getNewTempVar(FLOAT);
+				    }
+
+				    sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_r_prefix, rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
 								
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, temp_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
 
-							free(VMQ_line);
+				    freeTempVar();
+				}
 
-							break;
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 
-		case FUNC_CALL:		evalFuncCall(expr);
-							func = ((struct func_node*)expr)->val;
+				free(VMQ_line);
+			    
+				break;
 
-							if(func->return_type == INT)	rhs_addr = temp_addr = getNewTempVar(INT);
-							else							rhs_addr = temp_addr = getNewTempVar(FLOAT);
+	case FUNC_CALL:		evalFuncCall(expr);
+				func = ((struct func_node*)expr)->val;
 
-							VMQ_line = malloc(32);
+				if(func->return_type == INT)
+				    rhs_addr = temp_addr = getNewTempVar(INT);
+				else
+				    rhs_addr = temp_addr = getNewTempVar(FLOAT);
 
-							sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
-							appendToVMQList(VMQ_line);
+				VMQ_line = malloc(32);
 
-							if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+				sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
 
-							if(l_val->var_type == func->return_type)
-							{
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
-							else
-							{
-								if(l_val->var_type == INT)
-									op_code = 'f';
-								else
-									op_code = 'F';
+				if(l_val->var_type == func->return_type)
+				{
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								if(op_code == 'F' && (temp_addr % VMQ_FLT_SIZE != 0))
-									rhs_addr = getNewTempVar(FLOAT);
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
+				}
+				else
+				{
+				    op_code = (l_val->var_type == INT) ? 'f' : 'F';
+				    if(op_code == 'F' && (temp_addr % VMQ_FLT_SIZE != 0))
+					rhs_addr = getNewTempVar(FLOAT);
 
-								sprintf(VMQ_line, "%c /-%d /-%d", op_code, temp_addr, rhs_addr);
-								appendToVMQList(VMQ_line);
+				    sprintf(VMQ_line, "%c /-%d /-%d", op_code, temp_addr, rhs_addr);
+				    appendToVMQList(VMQ_line);
 
-								if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-								else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				    if(a->nodetype == ADD_ASSIGN)
+					op_code = (l_val->var_type == INT) ? 'a' : 'A';	
+				    else // SUB_ASSIGN INCOP
+					op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-								sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-								appendToVMQList(VMQ_line);
-							}
+				    sprintf(VMQ_line, "%c %s%d /-%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				    appendToVMQList(VMQ_line);
 
-							free(VMQ_line);
+				    if(rhs_addr != temp_addr)
+					freeTempVar();
+				}
 
-							break;
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 
-		case INT_LITERAL:	i_lit = ((struct int_node*)expr)->val;
-							rhs_addr = i_lit->VMQ_loc;
+				freeTempVar();
 
-							if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+				free(VMQ_line);
 
-							VMQ_line = malloc(32);
-							if(l_val->var_type != INT)
-							{
-								temp_addr = getNewTempVar(FLOAT);
-								sprintf(VMQ_line, "F %d /-%d", rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
-								rhs_addr = temp_addr;
-								VMQ_addr_r_prefix = "/-";
-							}
-							else
-								VMQ_addr_r_prefix = "";
+				break;
 
-							if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-							else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+	case INT_LITERAL:	i_lit = ((struct int_node*)expr)->val;
+				rhs_addr = i_lit->VMQ_loc;
 
-							sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-							appendToVMQList(VMQ_line);
+				if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-							free(VMQ_line);
+				VMQ_line = malloc(32);
+				if(l_val->var_type != INT)
+				{
+				    temp_addr = getNewTempVar(FLOAT);
+				    sprintf(VMQ_line, "F %d /-%d", rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
+				    rhs_addr = temp_addr;
+				    VMQ_addr_r_prefix = "/-";
+				}
+				else
+				    VMQ_addr_r_prefix = "";
 
-							break;
+				if(a->nodetype == ADD_ASSIGN)
+				    op_code = (l_val->var_type == INT) ? 'a' : 'A';	    
+				else // SUB_ASSIGN INCOP
+				    op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-		case FLT_LITERAL:	f_lit = ((struct flt_node*)expr)->val;
-							rhs_addr = f_lit->VMQ_loc;
+				sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				appendToVMQList(VMQ_line);
 
-							if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+				if(rhs_addr != i_lit->VMQ_loc)
+				    freeTempVar();
+			    
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 
-							VMQ_line = malloc(32);
-							if(l_val->var_type != FLOAT)
-							{
-								temp_addr = getNewTempVar(INT);
-								sprintf(VMQ_line, "f %d /-%d", rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
-								rhs_addr = temp_addr;
-								VMQ_addr_r_prefix = "/-";
-							}
-							else
-								VMQ_addr_r_prefix = "";
+				free(VMQ_line);
 
-							if(a->nodetype == ADD_ASSIGN)
-								{
-									if(l_val->var_type == INT)	op_code = 'a';
-									else						op_code = 'A';
-								}
-							else	// SUB_ASSIGN INCOP
-								{
-									if(l_val->var_type == INT)	op_code = 's';
-									else						op_code = 'S';
-								}
+				break;
 
-							sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-							appendToVMQList(VMQ_line);
+	case FLT_LITERAL:	f_lit = ((struct flt_node*)expr)->val;
+				rhs_addr = f_lit->VMQ_loc;
 
-							free(VMQ_line);
+				if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
 
-							break;
+				VMQ_line = malloc(32);
+				if(l_val->var_type != FLOAT)
+				{
+				    temp_addr = getNewTempVar(INT);
+				    sprintf(VMQ_line, "f %d /-%d", rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
+				    rhs_addr = temp_addr;
+				    VMQ_addr_r_prefix = "/-";
+				}
+				else
+				    VMQ_addr_r_prefix = "";
 
-		case ARR_ACCESS:	if(lhs_type == ARR_ACCESS)	lhs_addr = evalArrAccess(a->l);
+				if(a->nodetype == ADD_ASSIGN)
+				    op_code = (l_val->var_type == INT) ? 'a' : 'A';	    
+				else // SUB_ASSIGN INCOP
+				    op_code = (l_val->var_type == INT) ? 's' : 'S';
 
-							rhs_addr = evalArrAccess(expr);
-							VMQ_addr_r_prefix = "@/-";
-							r_node = ((struct var_node*)expr->l)->val;
-							r_val = r_node->val;
+				sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				appendToVMQList(VMQ_line);
 
-							VMQ_line = malloc(32);
+				if(rhs_addr != f_lit->VMQ_loc)
+				    freeTempVar();
+			    
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 
+				free(VMQ_line);
+
+				break;
+
+	case ARR_ACCESS:	if(lhs_type == ARR_ACCESS)
+				{
+				    evalArrAccess(a->l);
+				    lhs_addr = getNewTempVar(ADDR);
+				}
+
+				evalArrAccess(expr);
+				rhs_addr = getNewTempVar(ADDR);
+
+				VMQ_addr_r_prefix = "@/-";
+				r_node = ((struct var_node*)expr->l)->val;
+				r_val = r_node->val;
+
+				VMQ_line = malloc(32);
+
+				if(l_val->var_type != r_val->var_type)
+				{
+				    if(l_val->var_type == INT)
+				    {
+					op_code = 'f';
+					temp_addr = getNewTempVar(INT);
+				    }
+				    else
+				    {
+					op_code = 'F';
+					temp_addr = getNewTempVar(FLOAT);
+				    }
+
+				    sprintf(VMQ_line, "%c @/-%d /-%d", op_code, rhs_addr, temp_addr);
+				    appendToVMQList(VMQ_line);
+
+				    rhs_addr = temp_addr;
+				    VMQ_addr_r_prefix = "/-";
+				}
+
+				if(a->nodetype == ADD_ASSIGN)
+				    op_code = (l_val->var_type == INT) ? 'a' : 'A';	    
+				else // SUB_ASSIGN INCOP
+				    op_code = (l_val->var_type == INT) ? 's' : 'S';
+
+				sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
+				appendToVMQList(VMQ_line);
+
+				if(temp_addr)
+				    freeTempVar();
+
+				// RHS array ADDR storage
+				freeTempVar();
+
+				if(lhs_type == ARR_ACCESS)
+				    freeTempVar();
 							
-							if(l_val->var_type != r_val->var_type)
-							{
-								if(l_val->var_type == INT)
-								{
-									op_code = 'f';
-									temp_addr = getNewTempVar(INT);
-								}
-								else
-								{
-									op_code = 'F';
-									temp_addr = getNewTempVar(FLOAT);
-								}
-
-								sprintf(VMQ_line, "%c @/-%d /-%d", op_code, rhs_addr, temp_addr);
-								appendToVMQList(VMQ_line);
-
-								rhs_addr = temp_addr;
-								VMQ_addr_r_prefix = "/-";
-							}
-
-							if(a->nodetype == ADD_ASSIGN)
-							{
-								if(l_val->var_type == INT)	op_code = 'a';
-								else						op_code = 'A';
-							}
-							else	// SUB_ASSIGN INCOP
-							{
-								if(l_val->var_type == INT)	op_code = 's';
-								else						op_code = 'S';
-							}
-
-							sprintf(VMQ_line, "%c %s%d %s%d %s%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, VMQ_addr_l_prefix, lhs_addr);
-							appendToVMQList(VMQ_line);
-							
-							break;
+				break;
     }
 
     while(CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
 	freeTempVar();
 }
 
-unsigned int evalArrAccess(struct AST_node* a)
+void evalArrAccess(struct AST_node* a)
 {
-    if(!a || a->nodetype == 0)		yyerror("ERROR - evalArrAccess() encountered NULL or invalid \"a\"  node");
-    if(!a->r || a->r->nodetype == 0)	yyerror("ERROR - evalArrAccess() encountered NULL or invalid \"a->\" node");
+    if(!a || a->nodetype == 0)
+	yyerror("evalArrAccess() encountered NULL or invalid \"a\"  nodetype");
+    if(!a->r || a->r->nodetype == 0)
+	yyerror("evalArrAccess() encountered NULL or invalid \"a->\" nodetype");
 
     char* VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
-    unsigned int result_type;
-    unsigned int temp_addr;
     struct func_list_node* func = NULL;
-    struct varref* l_node = ((struct varref*)a->l), *r_node = NULL;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
+    struct varref* l_node = ((struct var_node*)a->l)->val, *r_node = NULL;
     struct var* l_val = l_node->val, *r_val = NULL; 
     unsigned int lit_loc;
 
@@ -1175,8 +1252,10 @@ unsigned int evalArrAccess(struct AST_node* a)
 	// Evaluate assignment-based op, use result to calculate index.
 	// r_val is either a variable or an array element
 	case ASSIGNOP:
-	case INCOP:	    if(ntype == ASSIGNOP)   evalAssignOp(expr);
-			    else		    evalIncOp(expr);
+	case INCOP:	    if(ntype == ASSIGNOP)   
+				evalAssignOp(expr);
+			    else
+				evalIncOp(expr);
 			    
 			    VMQ_line = malloc(32);
 
@@ -1185,19 +1264,19 @@ unsigned int evalArrAccess(struct AST_node* a)
 				r_node = ((struct var_node*)expr->l)->val;
 				r_val = r_node->val;
 
-				if(r_val->var_type == FLOAT) yyerror("ERROR - Floating point value used for array index");
+				if(r_val->var_type == FLOAT) yyerror("Floating point value used for array index");
 
 				if(r_val->isGlobal)	VMQ_addr_r_prefix = "";
 				else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
 				else			VMQ_addr_r_prefix = "/-";
 
-				temp_addr = getNewTempVar(INT);
+				result->VMQ_loc = getNewTempVar(ADDR);
 
 				// Generates stmt that will calculate the offset from the array base addr, stored in temp_var
-				sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, temp_addr);
+				sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, result->VMQ_loc);
 				appendToVMQList(VMQ_line);
 				// Stores the final address of the l_val array element address, storing it temp_var
-				sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+				sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 				appendToVMQList(VMQ_line);
 			    }
 			    else // expr->l->nodetype == ARR_ACCESS
@@ -1205,21 +1284,22 @@ unsigned int evalArrAccess(struct AST_node* a)
 				r_node = ((struct var_node*)expr->l->l)->val;
 				r_val = r_node->val;
 
-				if(r_val->var_type == FLOAT) yyerror("ERROR - Floating point value used for array index");
+				if(r_val->var_type == FLOAT) yyerror("Floating point value used for array index");
 
-				temp_addr = getNewTempVar(INT);
+				result->VMQ_loc = getNewTempVar(ADDR);
 				
 				// The first operand (@/-%d) == retrieving the value from the address of r_val's array element 
 				// that was calculated as a part of evalAssignOp() or evalIncOp().	
-				sprintf(VMQ_line, "m @/-%d %c /-%d", temp_addr, type_size_addr, temp_addr);
+				sprintf(VMQ_line, "m @/-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 				appendToVMQList(VMQ_line);
 
-				sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+				sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 				appendToVMQList(VMQ_line);
 			    }
 
 			    free(VMQ_line);
-	
+			    freeTempVar();
+			
 			    break;
 
 	// Evaluate math op, use result to calculate index.
@@ -1227,68 +1307,72 @@ unsigned int evalArrAccess(struct AST_node* a)
 	case SUB:
 	case MUL:
 	case DIV:
-	case MOD:	    if(ntype == ADD || ntype == SUB)	result_type = evalAddOp(expr);
-			    else				result_type = evalMulOp(expr);
+	case MOD:	    if(ntype == ADD || ntype == SUB)
+				evalAddOp(expr);
+			    else
+				evalMulOp(expr);
 
-			    if(result_type == FLOAT) yyerror("ERROR - Floating point value used for array index");
+			    if(result->type == FLOAT) 
+				yyerror("evalArrAccess() - Floating point value used for array index");
 
 			    VMQ_line = malloc(32);
-			    temp_addr = getNewTempVar(INT);
 
 			    // Generates stmt that will calculate the offset from the array base addr, store in temp_var.
-			    sprintf(VMQ_line, "m /-%d %c /-%d", temp_addr, type_size_addr, temp_addr);
+			    sprintf(VMQ_line, "m /-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
 			    // Generates final stmt for calculating array element addr, store in temp_var.
-			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
-			    free(VMQ_line);
-	
 			    break;
 
 	case VAR_ACCESS:    r_node = ((struct var_node*)expr)->val;
 			    r_val = r_node->val;
 
-			    if(r_val->var_type == FLOAT) yyerror("ERROR - Floating point value used for array index");
+			    if(r_val->var_type == FLOAT) yyerror("Floating point value used for array index");
 
 			    if(r_val->isGlobal)		VMQ_addr_r_prefix = "";
 			    else if(r_val->isParam)	VMQ_addr_r_prefix = "@/";
 			    else			VMQ_addr_r_prefix = "/-";
 
-			    temp_addr = getNewTempVar(INT);
+			    result->VMQ_loc = getNewTempVar(ADDR);
 
 			    VMQ_line = malloc(32);
 
 			    // Generates stmt that will calculate the offset from the array base addr, stored in temp_var
-			    sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, temp_addr);
+			    sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    // Stores the final address of the l_val array element address, storing it temp_var
-			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
+
+			    freeTempVar();
+			    free(VMQ_line);
 				
 			    break;
 
 	case FUNC_CALL:	    func = ((struct func_node*)expr)->val;
 			    if(func->return_type == FLOAT) 
-				yyerror("ERROR - Floating point value used for array index");
+				yyerror("Floating point value used for array index");
 			    
 			    // Push parameters onto the stack
 			    evalFuncCall(expr);
 			    
-			    temp_addr = getNewTempVar(INT);
+			    result->VMQ_loc = getNewTempVar(ADDR);
 
 			    VMQ_line = malloc(32);
 
 			    // The index will be the result of the function call.
-			    sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
+			    sprintf(VMQ_line, "c #/-%d %d", result->VMQ_loc, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
 			    
-			    sprintf(VMQ_line, "m /-%d %c /-%d", temp_addr, type_size_addr, temp_addr); 
+			    sprintf(VMQ_line, "m /-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc); 
 			    appendToVMQList(VMQ_line);
-			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
+			    freeTempVar();
 			    free(VMQ_line);
 
 			    break;
@@ -1297,37 +1381,35 @@ unsigned int evalArrAccess(struct AST_node* a)
 	case FLT_LITERAL:   if(ntype == INT_LITERAL)
 				lit_loc = ((struct int_node*)expr)->val->VMQ_loc;
 			    else
-				yyerror("ERROR - Floating point value used for array index");
+				yyerror("Floating point value used for array index");
 
-			    temp_addr = getNewTempVar(INT);
+			    result->VMQ_loc = getNewTempVar(ADDR);
 			    
 			    VMQ_line = malloc(32);
 
-			    sprintf(VMQ_line, "m %d %c /-%d", lit_loc, type_size_addr, temp_addr);
+			    sprintf(VMQ_line, "m %d %c /-%d", lit_loc, type_size_addr, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
-			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
+			    freeTempVar();
 			    free(VMQ_line);
 
 			    break;
 
-	case ARR_ACCESS:    temp_addr = evalArrAccess(expr);
+	case ARR_ACCESS:    evalArrAccess(expr);
 			    
 			    VMQ_line = malloc(32);
 
-			    sprintf(VMQ_line, "m @/-%d %c /-%d", temp_addr, type_size_addr, temp_addr);
+			    sprintf(VMQ_line, "m @/-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
-			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, temp_addr, temp_addr);
+			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
 			    free(VMQ_line);
 
 			    break;
     }
-
-    // Return the address of the temporary variable used to store the address of the array element
-    return temp_addr;
 }
 
 /*
@@ -1340,12 +1422,12 @@ void evalFuncCall(struct AST_node* a)
     if(!a || a->nodetype == 0)	return;
 
     char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
-    unsigned int result_type = 0;
     struct func_list_node* func = NULL;
     struct varref* v_node = NULL;
     struct var* v = NULL;
     struct intlit* i_lit = NULL;
     struct fltlit* f_lit = NULL;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
     struct AST_node* param;
 
     unsigned int orig_addr, orig_size, temp_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
@@ -1420,15 +1502,12 @@ void evalFuncCall(struct AST_node* a)
 	case MUL:
 	case DIV:
 	case MOD:	    if(param->nodetype == ADD || param->nodetype == SUB)
-				result_type = evalAddOp(param);
+				evalAddOp(param);
 			    else
-				result_type = evalMulOp(param);
-
-			    if(result_type == INT)  getNewTempVar(INT);
-			    else		    getNewTempVar(FLOAT);
+				evalMulOp(param);
 
 			    VMQ_line = malloc(32);
-			    sprintf(VMQ_line, "p #/-%d", temp_addr);
+			    sprintf(VMQ_line, "p #/-%d", result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 			    
@@ -1477,9 +1556,9 @@ void evalFuncCall(struct AST_node* a)
     }
 }
 
-unsigned int evalAddOp(struct AST_node* a)
+void evalAddOp(struct AST_node* a)
 {
-    if(!a || a->nodetype == 0)	yyerror("ERROR - evalAddOp() encountered NULL or empty AST node");
+    if(!a || a->nodetype == 0)	yyerror("evalAddOp() encountered NULL or empty AST node");
 
     // Supporting data structures
     char* VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
@@ -1489,6 +1568,7 @@ unsigned int evalAddOp(struct AST_node* a)
     struct intlit* r_int = NULL;
     struct fltlit* r_flt = NULL;
     struct func_list_node* func = NULL;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
     unsigned int result_type = INT;
     unsigned int orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
@@ -1512,7 +1592,7 @@ unsigned int evalAddOp(struct AST_node* a)
     {
 	case ADD:   
 	case SUB:   VMQ_line = malloc(32);
-		    if(isMathLeaf(lhs_ntype))
+		    if(isMathLeaf(lhs_ntype) || lhs_ntype == FUNC_CALL)
 		    {
 			if(lhs_ntype == INT_LITERAL)
 			{
@@ -1543,24 +1623,30 @@ unsigned int evalAddOp(struct AST_node* a)
 			{
 			    lhs_datatype = ((struct var_node*)lhs->l)->val->val->var_type;
 			    VMQ_addr_l_prefix = "@/-";
-			    lhs_addr = evalArrAccess(lhs);
+			    evalArrAccess(lhs);
+			    lhs_addr = getNewTempVar(ADDR);
 			}
 			else if(lhs_ntype == FUNC_CALL)
 			{
-			    func = ((struct func_node*)lhs)->val;
+			    func = ((struct func_node*)lhs->l)->val;
 			    lhs_datatype = func->return_type;
 			    VMQ_addr_l_prefix = "/-";
-			    lhs_addr = getNewTempVar(lhs_datatype);
 			    evalFuncCall(lhs);
+			    lhs_addr = getNewTempVar(lhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", lhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
 			}
 		    }
 		    else
 		    {
-			lhs_datatype = (lhs_ntype == ADD || lhs_ntype == SUB) ? evalAddOp(lhs) : evalMulOp(lhs);
+			if(lhs_ntype == ADD || lhs_ntype == SUB)
+			    evalAddOp(lhs);
+			else
+			    evalMulOp(lhs);
+
+			lhs_datatype = result->type;			
 			VMQ_addr_l_prefix = "/-";
-			lhs_addr = getNewTempVar(lhs_datatype);
+			lhs_addr = result->VMQ_loc;
 		    }
 
 		    // Special case:  unary add/sub.
@@ -1568,7 +1654,7 @@ unsigned int evalAddOp(struct AST_node* a)
 		    {
 			// If lhs is the result of a function call or math op evaluation, then we already allocated a
 			// temporary variable for it - no need to allocate another for the unary op.
-			new_addr = (isMathLeaf(lhs_ntype) && lhs_ntype != FUNC_CALL) ? getNewTempVar(lhs_datatype) : lhs_addr;
+			result->VMQ_loc = new_addr = (isMathLeaf(lhs_ntype) && lhs_ntype != FUNC_CALL) ? getNewTempVar(lhs_datatype) : lhs_addr;
  
 			if(lhs_datatype == INT)
 			{
@@ -1590,7 +1676,8 @@ unsigned int evalAddOp(struct AST_node* a)
 			    {
 				// This might as well be a no-op, but we're going for a literal translation.
 				unsigned int cast_addr = getNewTempVar(FLOAT);
-				sprintf(VMQ_line, "F 000 /-%d", cast_addr);
+				freeTempVar();
+				sprintf(VMQ_line, "F 000 /-%d", cast_addr + VMQ_FLT_SIZE);
 				appendToVMQList(VMQ_line);
 				sprintf(VMQ_line, "A %s%d /-%d /-%d", VMQ_addr_l_prefix, lhs_addr, cast_addr, new_addr);
 				appendToVMQList(VMQ_line);
@@ -1607,7 +1694,7 @@ unsigned int evalAddOp(struct AST_node* a)
 			// No need to compute rest of the code below, break out of the switch.
 			break;
 		    }
-		    else if(isMathLeaf(rhs_ntype))
+		    else if(isMathLeaf(rhs_ntype) || rhs_ntype == FUNC_CALL)
 		    {
 			if(rhs_ntype == INT_LITERAL)
 			{
@@ -1638,54 +1725,91 @@ unsigned int evalAddOp(struct AST_node* a)
 			{
 			    rhs_datatype = ((struct var_node*)rhs->l)->val->val->var_type;
 			    VMQ_addr_r_prefix = "@/-";
-			    rhs_addr = evalArrAccess(rhs);
+			    evalArrAccess(rhs);
+			    rhs_addr = getNewTempVar(ADDR);
 			}
 			else if(rhs_ntype == FUNC_CALL)
 			{
-			    func = ((struct func_node*)rhs)->val;
+			    func = ((struct func_node*)rhs->l)->val;
 			    rhs_datatype = func->return_type;
 			    VMQ_addr_r_prefix = "/-";
-			    rhs_addr = getNewTempVar(rhs_datatype);
 			    evalFuncCall(rhs);
+			    rhs_addr = getNewTempVar(rhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
 			}
 		    }
 		    else // rhs is some math op, needs to be evaluated
 		    {
-			if(rhs_ntype)
-			{
-			    rhs_datatype = (rhs_ntype == ADD || rhs_ntype == SUB) ? evalAddOp(rhs) : evalMulOp(rhs);
-			    VMQ_addr_r_prefix = "/-";
-			    rhs_addr = getNewTempVar(rhs_datatype);
-			}
+			if(rhs_ntype == ADD || rhs_ntype == SUB)
+			    evalAddOp(rhs);
+			else
+			    evalMulOp(rhs);
+			rhs_datatype = result->type;
+			VMQ_addr_r_prefix = "/-";
+			rhs_addr = result->VMQ_loc;
 		    }
 
 		    // Casting is required before generating the ADD/SUB operation.
 		    if(lhs_datatype != rhs_datatype)
 		    {
 			unsigned int* addr = (lhs_datatype == INT) ? &lhs_addr : &rhs_addr;
+			unsigned int* ntype_ptr = (lhs_datatype == INT) ? &lhs_ntype : &rhs_ntype;
 			unsigned int* datatype = (lhs_datatype == INT) ? &lhs_datatype : &rhs_datatype;
 			char** prefix = (lhs_datatype == INT) ? &VMQ_addr_l_prefix : &VMQ_addr_r_prefix;
-			    
-			new_addr = getNewTempVar(FLOAT);
+			
+			unsigned int temp_start_addr = CURRENT_FUNC->VMQ_data.tempvar_start;
+
+			if(isMathLeaf(*ntype_ptr))
+			    new_addr = getNewTempVar(FLOAT);
+			else
+			{
+			    if(*addr == temp_start_addr)
+				new_addr = *addr;
+			    else
+				new_addr = getNewTempVar(FLOAT);
+			}
+
 			sprintf(VMQ_line, "F %s%d /-%d", *prefix, *addr, new_addr);
 			appendToVMQList(VMQ_line);
 			*prefix = "/-";
 			*addr = new_addr;
 
+			result->type == FLOAT;
+
 			op_code = (ntype == ADD) ? 'A' : 'S';
 
 			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = new_addr;
+			    result->VMQ_loc = new_addr;
 			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
-			    dest_addr = (rhs_datatype == FLOAT) ? rhs_addr : new_addr;
+			{
+			    result->VMQ_loc = (rhs_datatype == FLOAT) ? rhs_addr : new_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();
+				freeTempVar();
+			    }
+			}
 			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = (lhs_datatype == FLOAT) ? lhs_addr : new_addr;
+			{
+			    result->VMQ_loc = (lhs_datatype == FLOAT) ? lhs_addr : new_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();
+				freeTempVar();
+			    }
+			}
 			else
-			    dest_addr = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
-
-			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, dest_addr);
+			{
+			    result->VMQ_loc = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();	// Need to cleanup two temps here, one for the
+				freeTempVar();	// temp storing the other addr used in the op
+						// and another for the cast temp created
+			    }
+			}
+			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		    }
 		    else
@@ -1695,16 +1819,20 @@ unsigned int evalAddOp(struct AST_node* a)
 			else
 			    op_code = (lhs_datatype == INT) ? 's' : 'S';
 
-			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = getNewTempVar(lhs_datatype);
-			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
-			    dest_addr = rhs_addr;
-			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = lhs_addr;
-			else
-			    dest_addr = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			result->type = lhs_ntype;
 
-			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, dest_addr);
+			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
+			    result->VMQ_loc = getNewTempVar(lhs_datatype);
+			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
+			    result->VMQ_loc = rhs_addr;
+			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
+			    result->VMQ_loc = lhs_addr;
+			else
+			{
+			    result->VMQ_loc = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			    freeTempVar();
+			}
+			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		    }
 
@@ -1713,18 +1841,15 @@ unsigned int evalAddOp(struct AST_node* a)
 		    break;
     }
 
-    while(CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
-	freeTempVar();
-
     if(lhs_datatype == FLOAT || rhs_datatype == FLOAT)
-	return FLOAT;
+	result->type = FLOAT;
     else
-	return INT;
+	result->type = INT;
 }
 
-unsigned int evalMulOp(struct AST_node* a)
+void evalMulOp(struct AST_node* a)
 {
-    if(!a || a->nodetype == 0)	yyerror("ERROR - evalAddOp() encountered NULL or empty AST node");
+    if(!a || a->nodetype == 0)	yyerror("evalAddOp() encountered NULL or empty AST node");
 
     // Supporting data structures
     char* VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
@@ -1734,20 +1859,15 @@ unsigned int evalMulOp(struct AST_node* a)
     struct intlit* r_int = NULL;
     struct fltlit* r_flt = NULL;
     struct func_list_node* func = NULL;
-    unsigned int result_type = INT;
+    struct VMQ_temp_node* result = &CURRENT_FUNC->VMQ_data.math_result;
+
     unsigned int orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
     unsigned int orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
     unsigned int lhs_addr, rhs_addr, new_addr, dest_addr;
 
     struct AST_node* lhs = a->l, *rhs = a->r;
-    unsigned int lhs_ntype = lhs->nodetype, rhs_ntype;
+    unsigned int lhs_ntype = lhs->nodetype, rhs_ntype = rhs->nodetype;
     
-    // For unary math ops, rhs will be NULL.
-    if(rhs)
-	rhs_ntype = rhs->nodetype;
-    else
-	rhs_ntype = 0;
-
     // Used to track if the lhs/rhs is an INT or FLOAT, 
     // so we can cast as needed while evaluating ADDOPs.
     unsigned int lhs_datatype, rhs_datatype;
@@ -1760,7 +1880,7 @@ unsigned int evalMulOp(struct AST_node* a)
 	case DIV:
 	case MOD:   VMQ_line = malloc(32);
 
-		    if(isMathLeaf(lhs_ntype))
+		    if(isMathLeaf(lhs_ntype) || lhs_ntype == FUNC_CALL)
 		    {
 			if(lhs_ntype == INT_LITERAL)
 			{
@@ -1791,27 +1911,33 @@ unsigned int evalMulOp(struct AST_node* a)
 			{
 			    lhs_datatype = ((struct var_node*)lhs->l)->val->val->var_type;
 			    VMQ_addr_l_prefix = "@/-";
-			    lhs_addr = evalArrAccess(lhs);
+			    evalArrAccess(lhs);
+			    lhs_addr = getNewTempVar(ADDR);
 			}
 			else if(lhs_ntype == FUNC_CALL)
 			{
-			    func = ((struct func_node*)lhs)->val;
+			    func = ((struct func_node*)lhs->l)->val;
 			    lhs_datatype = func->return_type;
 			    VMQ_addr_l_prefix = "/-";
-			    lhs_addr = getNewTempVar(lhs_datatype);
 			    evalFuncCall(lhs);
+			    lhs_addr = getNewTempVar(lhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", lhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
 			}
 		    }
 		    else
 		    {
-			lhs_datatype = (lhs_ntype == ADD || lhs_ntype == SUB) ? evalAddOp(lhs) : evalMulOp(lhs);
+			if(lhs_ntype == ADD || lhs_ntype == SUB)
+			    evalAddOp(lhs);
+			else
+			    evalMulOp(lhs);
+
+			lhs_datatype = result->type;
 			VMQ_addr_l_prefix = "/-";
-			lhs_addr = getNewTempVar(lhs_datatype);
+			lhs_addr = result->VMQ_loc;
 		    }
 
-		    if(isMathLeaf(rhs_ntype))
+		    if(isMathLeaf(rhs_ntype) || rhs_ntype == FUNC_CALL)
 		    {
 			if(rhs_ntype == INT_LITERAL)
 			{
@@ -1842,58 +1968,97 @@ unsigned int evalMulOp(struct AST_node* a)
 			{
 			    rhs_datatype = ((struct var_node*)rhs->l)->val->val->var_type;
 			    VMQ_addr_r_prefix = "@/-";
-			    rhs_addr = evalArrAccess(rhs);
+			    evalArrAccess(rhs);
+			    rhs_addr = getNewTempVar(ADDR);
 			}
 			else if(rhs_ntype == FUNC_CALL)
 			{
-			    func = ((struct func_node*)rhs)->val;
+			    func = ((struct func_node*)rhs->l)->val;
 			    rhs_datatype = func->return_type;
 			    VMQ_addr_r_prefix = "/-";
-			    rhs_addr = getNewTempVar(rhs_datatype);
 			    evalFuncCall(rhs);
+			    rhs_addr = getNewTempVar(rhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
 			}
 		    }
 		    else // rhs is some math op, needs to be evaluated
 		    {
-			if(rhs_ntype)
-			{
-			    rhs_datatype = (rhs_ntype == ADD || rhs_ntype == SUB) ? evalAddOp(rhs) : evalMulOp(rhs);
-			    VMQ_addr_r_prefix = "/-";
-			    rhs_addr = getNewTempVar(rhs_datatype);
-			}
+			if(rhs_ntype == ADD || rhs_ntype == SUB)
+			    evalAddOp(rhs);
+			else
+			    evalMulOp(rhs);
+
+			rhs_datatype = result->type;
+			VMQ_addr_r_prefix = "/-";
+			rhs_addr = result->VMQ_loc;
 		    }
 
-		    // Casting is required before generating the ADD/SUB operation.
+		    // Casting is required before generating the MUL/DIV operation.
 		    if(lhs_datatype != rhs_datatype)
 		    {
 			if(ntype == MOD)
-			    yyerror("ERROR - evalMulOp() operand for residue (modulo) op cannot be float value");
+			    yyerror("evalMulOp() - operand for residue (modulo) op cannot be float value");
 
 			unsigned int* addr = (lhs_datatype == INT) ? &lhs_addr : &rhs_addr;
+			unsigned int* ntype_ptr = (lhs_datatype == INT) ? &lhs_ntype : &rhs_ntype;
 			unsigned int* datatype = (lhs_datatype == INT) ? &lhs_datatype : &rhs_datatype;
 			char** prefix = (lhs_datatype == INT) ? &VMQ_addr_l_prefix : &VMQ_addr_r_prefix;
-			    
-			new_addr = getNewTempVar(FLOAT);
+			
+			unsigned int temp_start_addr = CURRENT_FUNC->VMQ_data.tempvar_start;
+   
+			if(isMathLeaf(*ntype_ptr))
+			    new_addr = getNewTempVar(FLOAT);
+			else
+			{
+			    if(*addr == temp_start_addr)
+				new_addr = *addr;
+			    else
+				new_addr = getNewTempVar(FLOAT);
+			}
+
 			sprintf(VMQ_line, "F %s%d /-%d", *prefix, *addr, new_addr);
 			appendToVMQList(VMQ_line);
 			*prefix = "/-";
 			*addr = new_addr;
 
+			result->type = FLOAT;
+
 			if(ntype == MUL)	op_code = 'M';
 			else if(ntype == DIV)	op_code = 'D';
 
 			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = new_addr;
+			    result->VMQ_loc = new_addr;
 			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
-			    dest_addr = (rhs_datatype == FLOAT) ? rhs_addr : new_addr;
+			{
+			    result->VMQ_loc = (rhs_datatype == FLOAT) ? rhs_addr : new_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();
+				freeTempVar();
+			    }
+			}
 			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = (lhs_datatype == FLOAT) ? lhs_addr : new_addr;
+			{
+			    result->VMQ_loc = (lhs_datatype == FLOAT) ? lhs_addr : new_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();
+				freeTempVar();
+			    }
+			}
 			else
-			    dest_addr = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			{
+			    result->VMQ_loc = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			    if(*addr != temp_start_addr)
+			    {
+				freeTempVar();	// Need to cleanup two temps here, one for the
+				freeTempVar();	// temp storing the other addr used in the op
+						// and another for the cast temp created.
+			    }
+			}
 
-			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, dest_addr);
+			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		    }
 		    else
@@ -1905,21 +2070,34 @@ unsigned int evalMulOp(struct AST_node* a)
 			else if(ntype == MOD)
 			{
 			    if(lhs_datatype == FLOAT)
-				yyerror("ERROR - evalMulOp() operand for residue (modulo) op cannot be float value");
+				yyerror("evalMulOp() - operand for residue (modulo) op cannot be float value");
 
 			    op_code = 'r';
 			}
 
-			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = getNewTempVar(lhs_datatype);
-			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
-			    dest_addr = rhs_addr;
-			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
-			    dest_addr = lhs_addr;
-			else
-			    dest_addr = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			result->type = lhs_datatype;
 
-			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, dest_addr);
+			if(isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
+			    result->VMQ_loc = getNewTempVar(lhs_datatype);
+			else if(isMathLeaf(lhs_ntype) && !isMathLeaf(rhs_ntype))
+			{
+			    result->VMQ_loc = rhs_addr;
+			    if(rhs_ntype == FUNC_CALL)
+				freeTempVar();
+			}
+			else if(!isMathLeaf(lhs_ntype) && isMathLeaf(rhs_ntype))
+			{
+			    result->VMQ_loc = lhs_addr;
+			    if(lhs_ntype == FUNC_CALL)
+				freeTempVar();
+			}
+			else
+			{
+			    result->VMQ_loc = (lhs_addr < rhs_addr) ? lhs_addr : rhs_addr;
+			    freeTempVar();
+			}
+
+			sprintf(VMQ_line, "%c %s%d %s%d /-%d", op_code, VMQ_addr_l_prefix, lhs_addr, VMQ_addr_r_prefix, rhs_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		    }
 
@@ -1928,11 +2106,8 @@ unsigned int evalMulOp(struct AST_node* a)
 		    break;
     }
 
-    while(CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
-	freeTempVar();
-
     if(lhs_datatype == FLOAT || rhs_datatype == FLOAT)
-	return FLOAT;
+	result->type = FLOAT;
     else
-	return INT;
+	result->type = INT;
 }

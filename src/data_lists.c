@@ -173,13 +173,12 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 
 struct VMQ_list_node* appendToVMQList(char* VMQ_line)
 {
-/*    
     if(DEBUG)
     {
 	printf("appendToVMQList() - VMQ_line == \"%s\"\n", VMQ_line);
 	fflush(stdout);
     }
-*/
+
     if(!CURRENT_FUNC)
 	yyerror("appendToVMQList() - CURRENT_FUNC is NULL, cannot append VMQ statement");
 
@@ -211,12 +210,13 @@ struct func_list_node* appendToFuncList(int return_type, char* func_name)
     temp->return_type = return_type;
     temp->func_name = strdup(func_name);
     temp->var_list_head = temp->var_list_tail = NULL;
-    temp->var_total_size = 0;
+    temp->var_total_size = 2;
     temp->param_list_head = temp->param_list_tail = NULL;
     
     tempVMQ->stmt_list_head = tempVMQ->stmt_list_tail = NULL;
     tempVMQ->stmt_count = 0;
     tempVMQ->quad_start_line = tempVMQ->quad_end_line = 1;
+    
     tempVMQ->tempvar_max_size = 0;
     tempVMQ->tempvar_stack_head = NULL;
 
@@ -231,10 +231,11 @@ void pushTempVar(unsigned int type)
     if(!func)
 	yyerror("ERROR - pushTempVar() funtion pointer is NULL");
 
+    struct VMQ_temp_node** stack_ptr = &CURRENT_FUNC->VMQ_data.tempvar_stack_head;
     struct VMQ_temp_node* pvtn;
     if(!func->VMQ_data.tempvar_stack_head)
     {
-	pvtn = func->VMQ_data.tempvar_stack_head = malloc(sizeof(struct VMQ_temp_node));
+	pvtn = *stack_ptr = malloc(sizeof(struct VMQ_temp_node));
 	if(!pvtn)
 	    yyerror("ERROR - pushTempVar() memory allocation failed");
 
@@ -244,14 +245,14 @@ void pushTempVar(unsigned int type)
     }
     else
     {
-	pvtn = malloc(sizeof(struct VMQ_temp_node));
-	if(!pvtn)
+	pvtn = *stack_ptr;
+	*stack_ptr = malloc(sizeof(struct VMQ_temp_node));
+	if(!func->VMQ_data.tempvar_stack_head)
 	    yyerror("ERROR - pushTempVar() memory allocation failed");
 
-	pvtn->VMQ_loc = func->VMQ_data.tempvar_cur_addr;
-	pvtn->type = type;
-	pvtn->next = func->VMQ_data.tempvar_stack_head;
-	func->VMQ_data.tempvar_stack_head = pvtn;
+	(*stack_ptr)->VMQ_loc = func->VMQ_data.tempvar_cur_addr;
+	(*stack_ptr)->type = type;
+	(*stack_ptr)->next = pvtn;
     }
 }
 
