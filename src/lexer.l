@@ -198,8 +198,12 @@ NEWLINE (\n)
 			else // Function call
 			{ 
 			    if(!symbolTableLookup(yytext))
-				yyerror("Function name not found");
-
+			    {
+				char* err_msg = malloc(64);
+				sprintf(err_msg, "Function name \"%s\" not found", yytext);
+				yyerror(err_msg);
+				free(err_msg);
+			    }
 			    struct func_list_node* funcPtr = FUNC_LIST_HEAD;
 			    while(funcPtr)
 			    {

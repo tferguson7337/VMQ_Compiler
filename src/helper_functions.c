@@ -253,6 +253,9 @@ void configureLocalMemorySpaces()
 	    struct var_list_node* skip_node = prev_node;
 	    // Scan for floats, set their VMQ_locs first.
 	    list_ptr = CURRENT_FUNC->var_list_head;
+
+	    
+
 	    while(list_ptr)
 	    {
 		if(list_ptr == skip_node) { list_ptr = list_ptr->next; continue; }
@@ -261,8 +264,8 @@ void configureLocalMemorySpaces()
 		
 		if(list_ptr->pvr->val->var_type == FLOAT)
 		{
-		    if(v->var_type == INT)
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
+		    if(v->var_type == INT)			// ensures first float is properly aligned
+			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + ((vref->VMQ_loc + 2) % VMQ_FLT_SIZE) + list_ptr->pvr->val->size * VMQ_INT_SIZE;
 		    else
 			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
 
@@ -609,7 +612,7 @@ void dumpTempVarStack(char op)
     }
     printf("NULL\n");
 
-    printf("\tcur_addr == %d || cur_size == %d\n", VMQ->tempvar_cur_addr, VMQ->tempvar_cur_size - VMQ_ADDR_SIZE);
+    printf("\tcur_addr == %d || cur_size == %d\n", VMQ->tempvar_cur_addr, VMQ->tempvar_cur_size);
     
     printf("%s\n\n", separator);
 

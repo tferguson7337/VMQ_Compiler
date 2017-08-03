@@ -18,6 +18,7 @@ struct flt_list_node
 struct var_list_node
 {
 	struct varref* pvr;
+	struct var_list_node* prev;
 	struct var_list_node* next;
 };
 

@@ -16,6 +16,14 @@ int main()
     f_arr[3] = -0.05;
     f_arr[4] = -127.502;
 
+    cout << "f_arr[0] == " << f_arr[0] << endl;
+    cout << "f_arr[1] == " << f_arr[1] << endl;
+    cout << "f_arr[2] == " << f_arr[2] << endl;
+    cout << "f_arr[3] == " << f_arr[3] << endl;
+    cout << "f_arr[4] == " << f_arr[4] << endl;
+
+    cout << endl;
+
     cout << "f_arr[mod(sub(add(f_arr[1], f_arr[2]), div(f_arr[2], f_arr[1])), 5)] == "
 	 <<  f_arr[mod(sub(add(f_arr[1], f_arr[2]), div(f_arr[2], f_arr[1])), 5)] << endl;
 }

@@ -148,21 +148,30 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 
 	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->pvr = newVarRef(&pv);
+	temp->prev = NULL;
 	temp->next = NULL;
     }
     else
     {
-	temp = temp->next = malloc(sizeof(struct var_list_node));
 	if(isGlobal)
+	{
+	    temp = malloc(sizeof(struct var_list_node));
+	    temp->prev = GLOBAL_VAR_LIST_TAIL;
 	    GLOBAL_VAR_LIST_TAIL = GLOBAL_VAR_LIST_TAIL->next = temp;
+	}
 	else if(isParam)
 	{
+	    temp = malloc(sizeof(struct var_list_node));
+	    temp->prev = CURRENT_FUNC->param_list_tail;
 	    CURRENT_FUNC->param_list_tail = CURRENT_FUNC->param_list_tail->next = temp;
 	    CURRENT_FUNC->param_count++;
 	}
 	else
+	{
+	    temp = malloc(sizeof(struct var_list_node));
+	    temp->prev = CURRENT_FUNC->var_list_tail;
 	    CURRENT_FUNC->var_list_tail = CURRENT_FUNC->var_list_tail->next = temp;
-
+	}
 	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->pvr = newVarRef(&pv);
 	temp->next = NULL;

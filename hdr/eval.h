@@ -18,7 +18,7 @@ void evalOutput(struct AST_node* a);
 void evalAssignOp(struct AST_node* a);
 void evalIncOp(struct AST_node* a);
 void evalArrAccess(struct AST_node* a);
-void evalFuncCall(struct AST_node* a, unsigned int return_type);
+void evalFuncCall(struct AST_node* a, unsigned int return_type, struct var_list_node* param);
 void evalAddOp(struct AST_node* a);
 void evalMulOp(struct AST_node* a);
 
@@ -46,6 +46,7 @@ static inline unsigned int getNewTempVar(unsigned int type)
     }
     else if(type == FLOAT)
     {	// VMQ floats are 32 bits (4 bytes)
+
 	if(*cur_size)
 	{
 	    struct VMQ_temp_node* last_temp = CURRENT_FUNC->VMQ_data.tempvar_stack_head;
@@ -166,7 +167,8 @@ static inline void freeTempVar()
 	*cur_size -= VMQ_ADDR_SIZE;
     else
     {
-	if((new_type == INT || new_type == ADDR) && (new_addr % VMQ_FLT_SIZE == 0))
+	if(((new_type == INT || new_type == ADDR) && (new_addr % VMQ_FLT_SIZE == 0))
+	    || ((new_type == 0) && (new_addr % VMQ_FLT_SIZE == 2)))
 	    *cur_size -= VMQ_ADDR_SIZE;
 
 	*cur_size -= VMQ_FLT_SIZE;
