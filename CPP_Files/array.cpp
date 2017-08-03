@@ -39,6 +39,8 @@ int main()
     cout << "flt_arr[6] == " << flt_arr[6] << endl;
     cout << "flt_arr[7] == " << flt_arr[7] << endl;
 
+    cout << "flt_arr[int_arr[2]] == " << flt_arr[int_arr[2]] << endl;
+
     cout << endl;
 
     return 0;

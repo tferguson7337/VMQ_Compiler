@@ -144,8 +144,8 @@ void configureLocalMemorySpaces()
 	if(!CURRENT_FUNC->param_list_head && !CURRENT_FUNC->var_list_head)
 	{
 	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 4;
-	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 2;
-	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 0;
+	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
 
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue;
@@ -175,8 +175,8 @@ void configureLocalMemorySpaces()
 	if(!list_ptr)
 	{ 
 	    CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = 4;
-	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 2;
-	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
+	    CURRENT_FUNC->VMQ_data.tempvar_cur_size = 0;
+	    CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
 	    
 	    CURRENT_FUNC = CURRENT_FUNC->next;
 	    continue; 
@@ -187,6 +187,10 @@ void configureLocalMemorySpaces()
 	v = NULL;
 	int* var_total_size = &(CURRENT_FUNC->var_total_size);
 
+	// This ensures the first two bytes of local memory space are reserved, since
+	// not doing so leads to problems with casting from local VMQ address space /-2.
+	*var_total_size = 2;
+
 	// Traverse list, find first INT var or array of odd size - set VMQ_loc to 2;
 	while(list_ptr)
 	{
@@ -195,7 +199,7 @@ void configureLocalMemorySpaces()
 	    if(v->var_type == INT && v->size % 2)
 	    {
 		prev_node = list_ptr;
-		vref->VMQ_loc = 2 * v->size + 2;
+		vref->VMQ_loc = VMQ_INT_SIZE * v->size + 2;
 		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		break;
 	    }
@@ -207,12 +211,20 @@ void configureLocalMemorySpaces()
 	{
 	    // Function contains no INT vars or INT arrays of odd size.
 	    // Memory cannot be ideally packed - just traverse the list
-	    // and set VMQ_locs simply.
+	    // and set VMQ_locs simply
 
 	    // Do the first variable so we can use prev_node in the loop
 	    list_ptr = CURRENT_FUNC->var_list_head;
-	    list_ptr->pvr->VMQ_loc = 4;
-	    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+
+	    if(list_ptr->pvr->val->var_type == INT)
+		list_ptr->pvr->VMQ_loc = 4 + (VMQ_INT_SIZE * (list_ptr->pvr->val->size - 1));
+	    else
+		list_ptr->pvr->VMQ_loc = 4 + (VMQ_FLT_SIZE * (list_ptr->pvr->val->size - 1));
+	    if(list_ptr->pvr->val->var_type == INT)
+		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+	    else
+		*var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
+
 	    prev_node = list_ptr;
 	    list_ptr = list_ptr->next;
 
@@ -225,6 +237,7 @@ void configureLocalMemorySpaces()
 		else
 		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
 		
+		printf("For VAR %s(%s), VMQ_loc set to %d\n", list_ptr->pvr->val->var_name, nodeTypeToString(list_ptr->pvr->val->var_type), list_ptr->pvr->VMQ_loc);
 		if(list_ptr->pvr->val->var_type == INT)
 		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
 		else
@@ -285,14 +298,16 @@ void configureLocalMemorySpaces()
 
 	if(DEBUG) { printf("\n\tCURRENT_FUNC (\"%s\") size of local vars == %d\n", CURRENT_FUNC->func_name, CURRENT_FUNC->var_total_size); fflush(stdout); }
 
+
+	// Add padding for the temporary variables to ensure that casting can work for the first temporary variable.
 	unsigned int temp_start;
 	if(prev_node->pvr->val->var_type == INT)
-	    temp_start = prev_node->pvr->VMQ_loc + VMQ_INT_SIZE + VMQ_ADDR_SIZE;
+	    temp_start = CURRENT_FUNC->var_total_size + VMQ_INT_SIZE + VMQ_ADDR_SIZE;
 	else
-	    temp_start = prev_node->pvr->VMQ_loc + VMQ_FLT_SIZE + VMQ_ADDR_SIZE;
+	    temp_start = CURRENT_FUNC->var_total_size + VMQ_FLT_SIZE + VMQ_ADDR_SIZE;
 
 	CURRENT_FUNC->VMQ_data.tempvar_start = CURRENT_FUNC->VMQ_data.tempvar_cur_addr = temp_start;
-	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 2;
+	CURRENT_FUNC->VMQ_data.tempvar_cur_size = CURRENT_FUNC->VMQ_data.tempvar_max_size = 0;
 
 	CURRENT_FUNC = CURRENT_FUNC->next;
     }
@@ -558,6 +573,7 @@ char* nodeTypeToString(int nodetype)
 	case ARR_DEC:	    str = "ARR_DEC"; break;
 	case VAR_ACCESS:    str = "VAR_ACCESS"; break;
 	case ARR_ACCESS:    str = "ARR_ACCESS"; break;
+	case ADDR:	    str = "ADDR"; break;
 	default:	    str = "!!UNKNOWN!!";
     }
     
@@ -567,7 +583,7 @@ char* nodeTypeToString(int nodetype)
     return str;
 }
 
-void dumpTempVarStack()
+void dumpTempVarStack(char op)
 {
     struct VMQ_func_data* VMQ = &CURRENT_FUNC->VMQ_data;
     struct VMQ_temp_node* stack_ptr = VMQ->tempvar_stack_head;
@@ -579,7 +595,12 @@ void dumpTempVarStack()
 
     separator[arr_size - 1] = '\0';
 
-    printf("\nDumping Stack\n");
+    printf("\nDumping Stack - ");
+    if(op == 'n')
+	printf("Post-New\n");
+    else
+	printf("Post-Free\n");
+
     printf("%s\n", separator);
     while(stack_ptr)
     {

@@ -210,7 +210,7 @@ struct func_list_node* appendToFuncList(int return_type, char* func_name)
     temp->return_type = return_type;
     temp->func_name = strdup(func_name);
     temp->var_list_head = temp->var_list_tail = NULL;
-    temp->var_total_size = 2;
+    temp->var_total_size = 0;
     temp->param_list_head = temp->param_list_tail = NULL;
     
     tempVMQ->stmt_list_head = tempVMQ->stmt_list_tail = NULL;

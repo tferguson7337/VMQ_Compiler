@@ -8,6 +8,8 @@ void eval(struct AST_node* a)
 {
     if(!a || a->nodetype == 0) return;
 
+    struct func_list_node* func = NULL;
+
     switch(a->nodetype)
     {
 	// Higher level statement cases.
@@ -34,11 +36,12 @@ void eval(struct AST_node* a)
 	case MOD:	    evalMulOp(a);	break;
 	
 	// FUNC_CALL - function call outside of assigment, throw away the return value (operand 1 == 0)
-	case FUNC_CALL:	    evalFuncCall(a);
+	case FUNC_CALL:	    func = ((struct func_node*)a->l)->val;
+			    evalFuncCall(a, func->return_type);
 			    char* VMQ_line = malloc(32);
-			    sprintf(VMQ_line, "c 0 %d", ((struct func_node*)a->l)->val->VMQ_data.quad_start_line);
+			    sprintf(VMQ_line, "c 0 %d", func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
-			    sprintf(VMQ_line, "^ %d", ((struct func_node*)a->l)->val->param_count);
+			    sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 			    appendToVMQList(VMQ_line);
 			    free(VMQ_line);
 			    break;
@@ -74,10 +77,18 @@ void eval(struct AST_node* a)
 			    // local memory.
 			    appendToVMQList("");
 
-			  //eval(a->l);
 			    eval(a->r);
 			    
 			    // Modify the placeholder line created above.
+			
+			    // If the function has declared local variables, add two bytes for the padding.
+			    if(CURRENT_FUNC->var_total_size)
+				CURRENT_FUNC->var_total_size += 2;
+
+			    // If the function ended up using any temporary variables, add two bytes for padding.
+			    if(CURRENT_FUNC->VMQ_data.tempvar_max_size)
+				CURRENT_FUNC->VMQ_data.tempvar_max_size += 2;
+ 
 			    unsigned int total_size = CURRENT_FUNC->var_total_size + CURRENT_FUNC->VMQ_data.tempvar_max_size;
 
 			    sprintf(CURRENT_FUNC->VMQ_data.stmt_list_head->VMQ_line, "# %d", total_size); 
@@ -199,8 +210,8 @@ void evalReturn(struct AST_node* a)
 			    break;
 	
 	// Insert return value of function call into return value memory space of current function.
-	case FUNC_CALL:	    evalFuncCall(a);
-			    func = ((struct func_node*)a->l)->val;
+	case FUNC_CALL:	    func = ((struct func_node*)a->l)->val;
+			    evalFuncCall(a, func->return_type);
 
 			    VMQ_line = malloc(32);
 			    sprintf(VMQ_line, "c @/4 %d", func->VMQ_data.quad_start_line);
@@ -439,9 +450,9 @@ void evalOutput(struct AST_node* a)
 			    break;
 
 	// Output return value of function call.
-	case FUNC_CALL:	    evalFuncCall(a);
-			    func = ((struct func_node*)a)->val;
-			    
+	case FUNC_CALL:	    func = ((struct func_node*)a->l)->val;
+			    evalFuncCall(a, func->return_type);
+
 			    // Store return value of function into a temporary variable.
 			    if(func->return_type == INT)
 				temp_addr = getNewTempVar(INT);
@@ -722,8 +733,8 @@ void evalAssignOp(struct AST_node* a)
 				else			VMQ_addr_l_prefix = "#/-";
 			    }
 
-			    evalFuncCall(a->r); // Generates the appropriate statements for pushing variables onto the stack for passing.
 			    func = ((struct func_node*)a->r->l)->val;
+			    evalFuncCall(a->r, func->return_type); // Generates the appropriate statements for pushing variables onto the stack for passing.
 			    
 			    if(l_val->var_type == func->return_type)
 			    {// We can store the return value of the function directly into the l_val
@@ -1024,8 +1035,9 @@ void evalIncOp(struct AST_node* a)
 			    
 				break;
 
-	case FUNC_CALL:		evalFuncCall(expr);
-				func = ((struct func_node*)expr)->val;
+	case FUNC_CALL:		func = ((struct func_node*)expr)->val;
+				evalFuncCall(expr, func->return_type);
+				
 
 				if(func->return_type == INT)
 				    rhs_addr = temp_addr = getNewTempVar(INT);
@@ -1246,7 +1258,6 @@ void evalArrAccess(struct AST_node* a)
     struct AST_node* expr = a->r;
 
     unsigned int ntype = expr->nodetype;
-
     switch(ntype)
     {
 	// Evaluate assignment-based op, use result to calculate index.
@@ -1352,12 +1363,13 @@ void evalArrAccess(struct AST_node* a)
 				
 			    break;
 
-	case FUNC_CALL:	    func = ((struct func_node*)expr)->val;
+	case FUNC_CALL:	    func = ((struct func_node*)expr->l)->val;
+
 			    if(func->return_type == FLOAT) 
 				yyerror("Floating point value used for array index");
 			    
 			    // Push parameters onto the stack
-			    evalFuncCall(expr);
+			    evalFuncCall(expr, func->return_type);
 			    
 			    result->VMQ_loc = getNewTempVar(ADDR);
 
@@ -1372,7 +1384,6 @@ void evalArrAccess(struct AST_node* a)
 			    sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			    appendToVMQList(VMQ_line);
 
-			    freeTempVar();
 			    free(VMQ_line);
 
 			    break;
@@ -1417,12 +1428,13 @@ void evalArrAccess(struct AST_node* a)
     This is due to the fact that the 1st operand of the function call statement is used to determine
     where the return value of the function is placed - this is dependent on the context of the function call.
 */
-void evalFuncCall(struct AST_node* a)
+void evalFuncCall(struct AST_node* a, unsigned int return_type)
 {
     if(!a || a->nodetype == 0)	return;
 
+    char op_code;
     char* VMQ_line = NULL, *VMQ_addr_prefix = NULL;
-    struct func_list_node* func = NULL;
+    struct func_list_node* func = NULL, *target_func = NULL;
     struct varref* v_node = NULL;
     struct var* v = NULL;
     struct intlit* i_lit = NULL;
@@ -1445,8 +1457,62 @@ void evalFuncCall(struct AST_node* a)
 	case EXPRS:	    orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
 			    orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
 
-			    evalFuncCall(param->r);	
-			    evalFuncCall(param->l);
+			    target_func = ((struct func_node*)a->l)->val;
+			    evalFuncCall(param->r, target_func->return_type);
+			    
+			    if(param->r->nodetype == FUNC_CALL)
+			    {
+				// Code for handling nested function calls (i.e., function calls used as arguments).
+				// The nested function call EXPRS have already been evaluated, so we'll just handle the
+				// code for generating the appropriate VMQ statements to handle the function call itself.
+
+				func = ((struct func_node*)param->r->l)->val;
+
+				if(func->return_type == INT)	temp_addr = getNewTempVar(INT);
+				else				temp_addr = getNewTempVar(FLOAT);
+
+				VMQ_line = malloc(32);
+				
+				// Call function, store return value in temporary variable
+				sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
+				// Pop the called functions parameters off of the stack.
+				sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
+				appendToVMQList(VMQ_line);
+				// Push the result of the function call onto the stack.
+				sprintf(VMQ_line, "p #/-%d", temp_addr);
+				appendToVMQList(VMQ_line);
+
+				free(VMQ_line);
+			    }
+	
+			    evalFuncCall(param->l, target_func->return_type);
+
+			    if(param->l->nodetype == FUNC_CALL)
+			    {
+				// Code for handling nested function calls (i.e., function calls used as arguments).
+				// The nested function call EXPRS have already been evaluated, so we'll just handle the
+				// code for generating the appropriate VMQ statements to handle the function call itself.
+
+				func = ((struct func_node*)param->l->l)->val;
+
+				if(func->return_type == INT)    temp_addr = getNewTempVar(INT);
+				else				temp_addr = getNewTempVar(FLOAT);
+
+				VMQ_line = malloc(32);
+				
+				// Call function, store return value in temporary variable
+				sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
+				appendToVMQList(VMQ_line);
+				// Pop the called functions parameters off of the stack.
+				sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
+				appendToVMQList(VMQ_line);
+				// Push the result of the function call onto the stack.
+				sprintf(VMQ_line, "p #/-%d", temp_addr);
+				appendToVMQList(VMQ_line);
+
+				free(VMQ_line);
+			    }
 	
 			    while(CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
 				freeTempVar();
@@ -1471,27 +1537,69 @@ void evalFuncCall(struct AST_node* a)
 			    { 
 				v_node = ((struct var_node*)param)->val; 
 				v = v_node->val;
+
+				if(v->isGlobal)	    VMQ_addr_prefix = "#";
+				else if(v->isParam) VMQ_addr_prefix = "/";
+				else		    VMQ_addr_prefix = "#/-";
 			    }
 			    else if(param->nodetype == ARR_ACCESS)
 			    {
 				evalArrAccess(param);
 
+				result->VMQ_loc = getNewTempVar(ADDR);
+				
 				v_node = ((struct var_node*)param->l)->val;
 				v = v_node->val;
+
+				VMQ_addr_prefix = "/-";
 			    }
 
-			    if(v->isGlobal)	VMQ_addr_prefix = "#";
-			    else if(v->isParam)	VMQ_addr_prefix = "/";
-			    else		VMQ_addr_prefix = "#/-";
-
 			    VMQ_line = malloc(32);
-			    
-			    if(param->nodetype == ARR_ACCESS)
-				sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, temp_addr);
-			    else
-				sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, v_node->VMQ_loc);
-			    appendToVMQList(VMQ_line);
-			    
+
+			    if(v->var_type == return_type)
+			    {
+				if(param->nodetype == ARR_ACCESS)
+				    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, result->VMQ_loc);
+				else
+				    sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, v_node->VMQ_loc);
+
+				appendToVMQList(VMQ_line);
+			    }
+			    else // need to cast the value to the correct type before pushing.
+			    {
+				unsigned int src_addr;
+				if(param->nodetype == ARR_ACCESS)
+				{
+				    src_addr = result->VMQ_loc;
+				    freeTempVar();
+				    VMQ_addr_prefix = "@/-";
+				}
+				else
+				{
+				    src_addr = v_node->VMQ_loc;
+				    VMQ_addr_prefix = "/-";
+				}
+
+				if(return_type == INT)
+				{
+				    op_code = 'f';
+				    temp_addr = getNewTempVar(INT);
+				}
+				else
+				{
+				    op_code = 'F';
+				    temp_addr = getNewTempVar(FLOAT);
+				}
+
+				// Generate the cast statement
+				sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_prefix, src_addr, temp_addr);
+				appendToVMQList(VMQ_line);
+				
+				// Generate the push statement
+				sprintf(VMQ_line, "p #/-%d", temp_addr);
+				appendToVMQList(VMQ_line);
+			    }
+			     
 			    free(VMQ_line);
 
 			    break;
@@ -1533,26 +1641,9 @@ void evalFuncCall(struct AST_node* a)
 			    break;
 
 	// Push the return value of the function onto the stack.
-	case FUNC_CALL:	    evalFuncCall(param);
-			    func = ((struct func_node*)param->l)->val;
-
-			    if(func->return_type == INT)    temp_addr = getNewTempVar(INT);
-			    else			    temp_addr = getNewTempVar(FLOAT);
-
-			    VMQ_line = malloc(32);
-			    // Call function, store return value in temporary variable
-			    sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
-			    appendToVMQList(VMQ_line);
-			    // Pop the called functions parameters off of the stack.
-			    sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
-			    appendToVMQList(VMQ_line);
-			    // Push the result of the function call onto the stack.
-			    sprintf(VMQ_line, "p #/-%d", temp_addr);
-			    appendToVMQList(VMQ_line);
-
-			    free(VMQ_line);
-			    
-			    break;
+//	case FUNC_CALL:	    evalFuncCall(param);
+//			    
+//			    break;
     }
 }
 
@@ -1631,7 +1722,7 @@ void evalAddOp(struct AST_node* a)
 			    func = ((struct func_node*)lhs->l)->val;
 			    lhs_datatype = func->return_type;
 			    VMQ_addr_l_prefix = "/-";
-			    evalFuncCall(lhs);
+			    evalFuncCall(lhs, func->return_type);
 			    lhs_addr = getNewTempVar(lhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", lhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
@@ -1733,7 +1824,7 @@ void evalAddOp(struct AST_node* a)
 			    func = ((struct func_node*)rhs->l)->val;
 			    rhs_datatype = func->return_type;
 			    VMQ_addr_r_prefix = "/-";
-			    evalFuncCall(rhs);
+			    evalFuncCall(rhs, func->return_type);
 			    rhs_addr = getNewTempVar(rhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
@@ -1919,7 +2010,7 @@ void evalMulOp(struct AST_node* a)
 			    func = ((struct func_node*)lhs->l)->val;
 			    lhs_datatype = func->return_type;
 			    VMQ_addr_l_prefix = "/-";
-			    evalFuncCall(lhs);
+			    evalFuncCall(lhs, func->return_type);
 			    lhs_addr = getNewTempVar(lhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", lhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
@@ -1976,7 +2067,7 @@ void evalMulOp(struct AST_node* a)
 			    func = ((struct func_node*)rhs->l)->val;
 			    rhs_datatype = func->return_type;
 			    VMQ_addr_r_prefix = "/-";
-			    evalFuncCall(rhs);
+			    evalFuncCall(rhs, func->return_type);
 			    rhs_addr = getNewTempVar(rhs_datatype);
 			    sprintf(VMQ_line, "c #/-%d %d", rhs_addr, func->VMQ_data.quad_start_line);
 			    appendToVMQList(VMQ_line);
