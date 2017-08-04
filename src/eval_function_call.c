@@ -5,22 +5,21 @@
     This is due to the fact that the 1st operand of the function call statement is used to determine
     where the return value of the function is placed - this is dependent on the context of the function call.
 */
-void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_node *param)
+void evalFuncCall(struct AST_node *a, struct var_list_node *param)
 {
-	if (!a || a->nodetype == 0)
+	if (!a || a->nodetype == 0 || param == NULL)
 		return;
 
 	char op_code;
-	char *VMQ_line = NULL, *VMQ_addr_prefix = NULL;
+	char *addr_mode = NULL;
 	struct func_list_node *func = NULL, *target_func = NULL;
-	struct varref *v_node = NULL;
 	struct var *v = NULL;
 	struct intlit *i_lit = NULL;
 	struct fltlit *f_lit = NULL;
 	struct VMQ_temp_node *result = &CURRENT_FUNC->VMQ_data.math_result;
 	struct AST_node *arg;
-	unsigned int param_type = (param) ? param->pvr->val->var_type : 0;
-	unsigned int orig_addr, orig_size, temp_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
+	unsigned int param_type = (param) ? param->pv->var_type : 0;
+	unsigned int orig_size, temp_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
 
 	if (a->r && a->nodetype == FUNC_CALL)
 		arg = a->r;
@@ -33,13 +32,12 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 	{
 	// Highest level - expression list case.
 	case EXPRS:
-		orig_addr = CURRENT_FUNC->VMQ_data.tempvar_cur_addr;
 		orig_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
 
 		target_func = ((struct func_node *)a->l)->val;
 		param = target_func->param_list_tail;
 
-		evalFuncCall(arg->r, target_func->return_type, param);
+		evalFuncCall(arg->r, param);
 
 		if (arg->r->nodetype == FUNC_CALL)
 		{
@@ -54,8 +52,6 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			else
 				temp_addr = getNewTempVar(FLOAT);
 
-			VMQ_line = malloc(32);
-
 			// Call function, store return value in temporary variable
 			sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
 			appendToVMQList(VMQ_line);
@@ -67,11 +63,9 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			// Push the result of the function call onto the stack.
 			sprintf(VMQ_line, "p #/-%d", temp_addr);
 			appendToVMQList(VMQ_line);
-
-			free(VMQ_line);
 		}
 
-		evalFuncCall(arg->l, target_func->return_type, param->prev);
+		evalFuncCall(arg->l, param->prev);
 
 		if (arg->l->nodetype == FUNC_CALL)
 		{
@@ -85,9 +79,7 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 				temp_addr = getNewTempVar(INT);
 			else
 				temp_addr = getNewTempVar(FLOAT);
-
-			VMQ_line = malloc(32);
-
+			 
 			// Call function, store return value in temporary variable
 			sprintf(VMQ_line, "c #/-%d %d", temp_addr, func->VMQ_data.quad_start_line);
 			appendToVMQList(VMQ_line);
@@ -99,8 +91,6 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			// Push the result of the function call onto the stack.
 			sprintf(VMQ_line, "p #/-%d", temp_addr);
 			appendToVMQList(VMQ_line);
-
-			free(VMQ_line);
 		}
 
 		while (CURRENT_FUNC->VMQ_data.tempvar_cur_size != orig_size)
@@ -119,22 +109,20 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 		else
 			evalIncOp(arg);
 
-		v_node = ((struct var_node *)arg->l)->val;
-		v = v_node->val;
+		v = ((struct var_node *)arg->l)->val;
 
 	case VAR_ACCESS:
 	case ARR_ACCESS:
 		if (arg->nodetype == VAR_ACCESS)
 		{
-			v_node = ((struct var_node *)arg)->val;
-			v = v_node->val;
+			v = ((struct var_node *)arg)->val;
 
 			if (v->isGlobal)
-				VMQ_addr_prefix = "#";
+				addr_mode = "#";
 			else if (v->isParam)
-				VMQ_addr_prefix = "/";
+				addr_mode = "/";
 			else
-				VMQ_addr_prefix = "#/-";
+				addr_mode = "#/-";
 		}
 		else if (arg->nodetype == ARR_ACCESS)
 		{
@@ -142,19 +130,17 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 
 			result->VMQ_loc = getNewTempVar(ADDR);
 
-			v_node = ((struct var_node *)arg->l)->val;
-			v = v_node->val;
+			v = ((struct var_node *)arg->l)->val;
 
-			VMQ_addr_prefix = "/-";
+			addr_mode = "/-";
 		}
-
-		VMQ_line = malloc(32);
+		 
 		if (v->var_type == param_type)
 		{
 			if (arg->nodetype == ARR_ACCESS)
-				sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, result->VMQ_loc);
+				sprintf(VMQ_line, "p %s%d", addr_mode, result->VMQ_loc);
 			else
-				sprintf(VMQ_line, "p %s%d", VMQ_addr_prefix, v_node->VMQ_loc);
+				sprintf(VMQ_line, "p %s%d", addr_mode, v->VMQ_loc);
 
 			appendToVMQList(VMQ_line);
 		}
@@ -165,12 +151,12 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			{
 				src_addr = result->VMQ_loc;
 				freeTempVar();
-				VMQ_addr_prefix = "@/-";
+				addr_mode = "@/-";
 			}
 			else // arg->nodetype == VAR_ACCESS
 			{
-				src_addr = v_node->VMQ_loc;
-				VMQ_addr_prefix = "/-";
+				src_addr = v->VMQ_loc;
+				addr_mode = "/-";
 			}
 
 			if (param_type == INT)
@@ -185,15 +171,13 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			}
 
 			// Generate the cast statement
-			sprintf(VMQ_line, "%c %s%d /-%d", op_code, VMQ_addr_prefix, src_addr, temp_addr);
+			sprintf(VMQ_line, "%c %s%d /-%d", op_code, addr_mode, src_addr, temp_addr);
 			appendToVMQList(VMQ_line);
 
 			// Generate the push statement
 			sprintf(VMQ_line, "p #/-%d", temp_addr);
 			appendToVMQList(VMQ_line);
 		}
-
-		free(VMQ_line);
 
 		break;
 
@@ -204,8 +188,6 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 	case DIV:
 	case MOD:
 		evalMath(arg);
-
-		VMQ_line = malloc(32);
 
 		if (result->type == param_type)
 		{
@@ -225,14 +207,11 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 			freeTempVar();
 		}
 
-		free(VMQ_line);
-
 		break;
 
 	// Push the int/float literal onto the stack.
 	case INT_LITERAL:
-	case FLT_LITERAL:
-		VMQ_line = malloc(32);
+	case FLT_LITERAL:		 
 		if (arg->nodetype == INT_LITERAL)
 		{
 			i_lit = ((struct int_node *)arg)->val;
@@ -271,8 +250,6 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 				freeTempVar();
 			}
 		}
-
-		free(VMQ_line);
 
 		break;
 	}

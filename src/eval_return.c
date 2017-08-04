@@ -6,10 +6,9 @@ void evalReturn(struct AST_node *a)
 		return;
 
 	// Supporting data structures.
-	char *VMQ_line = NULL, *VMQ_addr_prefix = NULL;
+	char *addr_mode = NULL;
 	char op_code;
 	struct var *v = NULL;
-	struct varref *vnode = NULL;
 	struct func_list_node *func = NULL;
 	struct VMQ_temp_node *result = &CURRENT_FUNC->VMQ_data.math_result;
 	unsigned int temp_addr, r_val_addr, return_type = CURRENT_FUNC->return_type;
@@ -35,31 +34,27 @@ void evalReturn(struct AST_node *a)
 		if (a->nodetype == VAR_ACCESS || a->l->nodetype == VAR_ACCESS)
 		{
 			if (a->nodetype == VAR_ACCESS)
-				vnode = ((struct var_node *)a)->val;
+				v = ((struct var_node *)a)->val;
 			else // a->l->nodetype == VAR_ACCESS
-				vnode = ((struct var_node *)a->l)->val;
-
-			v = vnode->val;
+				v = ((struct var_node *)a->l)->val;
 
 			if (v->isGlobal)
-				VMQ_addr_prefix = "";
+				addr_mode = "";
 			else if (v->isParam)
-				VMQ_addr_prefix = "@/";
+				addr_mode = "@/";
 			else
-				VMQ_addr_prefix = "/-";
+				addr_mode = "/-";
 
-			r_val_addr = vnode->VMQ_loc;
+			r_val_addr = v->VMQ_loc;
 		}
 		else // a->nodetype == ARR_ACCESS || a->l->nodetype == ARR_ACCESS
 		{
 			if (a->nodetype == ARR_ACCESS)
-				vnode = ((struct var_node *)a->l)->val;
+				v = ((struct var_node *)a->l)->val;
 			else
-				vnode = ((struct var_node *)a->l->l)->val;
+				v = ((struct var_node *)a->l->l)->val;
 
-			v = vnode->val;
-
-			VMQ_addr_prefix = "@/-";
+			addr_mode = "@/-";
 			r_val_addr = result->VMQ_loc;
 		}
 
@@ -72,12 +67,8 @@ void evalReturn(struct AST_node *a)
 		else // v->var_type == INT && return_type == FLOAT
 			op_code = 'F';
 
-		VMQ_line = malloc(32);
-
-		sprintf(VMQ_line, "%c %s%d @/4", op_code, VMQ_addr_prefix, r_val_addr);
-		appendToVMQList(VMQ_line);
-
-		free(VMQ_line);
+		sprintf(VMQ_line, "%c %s%d @/4", op_code, addr_mode, r_val_addr);
+		appendToVMQList(VMQ_line);		
 
 		break;
 
@@ -98,19 +89,15 @@ void evalReturn(struct AST_node *a)
 		else // result->type == INT && return_type == FLOAT
 			op_code = 'F';
 
-		VMQ_line = malloc(32);
 		sprintf(VMQ_line, "%c /-%d @/4", op_code, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
-		free(VMQ_line);
-
+		
 		break;
 
 	// Insert return value of function call into return value memory space of current function.
 	case FUNC_CALL:
 		func = ((struct func_node *)a->l)->val;
-		evalFuncCall(a, func->return_type, func->param_list_tail);
-
-		VMQ_line = malloc(32);
+		evalFuncCall(a, func->param_list_tail);
 
 		if (return_type == func->return_type)
 		{
@@ -138,8 +125,6 @@ void evalReturn(struct AST_node *a)
 			freeTempVar();
 		}
 
-		free(VMQ_line);
-
 		break;
 
 	// Insert address of literal integer or float into return value memory space.
@@ -154,15 +139,12 @@ void evalReturn(struct AST_node *a)
 		else // a->nodetype == INT_LITERAL && return_type == FLOAT
 			op_code = 'F';
 
-		VMQ_line = malloc(32);
-
 		if (a->nodetype == INT_LITERAL)
 			sprintf(VMQ_line, "%c %d @/4", op_code, ((struct int_node *)a)->val->VMQ_loc);
 		else // a->nodetype == FLT_LITERAL
 			sprintf(VMQ_line, "%c %d @/4", op_code, ((struct flt_node *)a)->val->VMQ_loc);
 
 		appendToVMQList(VMQ_line);
-		free(VMQ_line);
 
 		break;
 	}

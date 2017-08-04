@@ -24,7 +24,7 @@
     struct intlit* INT_LIT;	    /* Used to reference a literal integer */
     struct fltlit* FLT_LIT;	    /* Used to reference a literal float */
     struct strlit* STR_LIT;	    /* Used to reference a literal string */
-    struct varref* VAR_REF;	    /* Used to reference a variable */
+    struct var* VAR;		    /* Used to reference a variable */
     struct func_list_node* FUNC;    /* Used to reference a function */
 }
 
@@ -42,7 +42,7 @@
 %token STREAMIN STREAMOUT
 
 /* Variable/Function Token */
-%token <VAR_REF> ID
+%token <VAR> ID
 
 /* Keyword tokens */
 %token CIN COUT ELSE 
@@ -89,10 +89,10 @@ function_definitions:	function_head block					{ $$ = create_AST_node(FUNC_DEF, $
 
 identifier_list:	ID							{ $$ = create_var_node(VAR_DEC, $1); }
 		    |   ID '[' INT_LITERAL ']'					{ $$ = create_AST_node(ARR_DEC, create_var_node(ID, $1), create_int_node(INT_LITERAL, $3)); 
-										    $1->val->size = atoi($3->val); if(atoi($3->val) <= 0) { yyerror("INVALID ARRAY SIZE"); exit(-1); } }
+										    $1->size = atoi($3->val); if(atoi($3->val) <= 0) yyerror("INVALID ARRAY SIZE"); }
 		    |   identifier_list ',' ID					{ $$ = create_AST_node(ID_LIST, $1, create_var_node(VAR_DEC, $3)); }
 		    |   identifier_list ',' ID '[' INT_LITERAL ']'		{ $$ = create_AST_node(ID_LIST, $1, create_AST_node(ARR_DEC, create_var_node(ID, $3), create_int_node(INT_LITERAL, $5)));
-										    $3->val->size = atoi($5->val); if(atoi($5->val) <= 0) { yyerror("INVALID ARRAY SIZE"); exit(-1); } }
+										    $3->size = atoi($5->val); if(atoi($5->val) <= 0) yyerror("INVALID ARRAY SIZE"); }
 ;
 
 variable_definitions:	/* nothing */						{ $$ = create_AST_node(0, NULL, NULL); }

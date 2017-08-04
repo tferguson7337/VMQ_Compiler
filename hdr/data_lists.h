@@ -17,7 +17,7 @@ struct flt_list_node
 
 struct var_list_node
 {
-	struct varref* pvr;
+	struct var* pv;
 	struct var_list_node* prev;
 	struct var_list_node* next;
 };
@@ -75,7 +75,7 @@ struct VMQ_func_data
 
 struct func_list_node
 {
-	int return_type;		// Return type of function, as indicated in cpp file (INT OR FLOAT).
+	unsigned int return_type;	// Return type of function, as indicated in cpp file (INT OR FLOAT).
 	char* func_name;		// Name of function as found in cpp file.
 	VAR_LIST var_list_head;		// Head of list for tracking func's local vars
 	VAR_LIST var_list_tail;

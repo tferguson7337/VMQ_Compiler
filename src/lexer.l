@@ -128,7 +128,7 @@ NEWLINE (\n)
 			    else
 				data_type = FLOAT;
 
-			    yylval.VAR_REF = appendToVarList(data_type, yytext)->pvr;
+			    yylval.VAR = appendToVarList(data_type, yytext)->pv;
 			    
 			    return ID;
 			}
@@ -139,13 +139,11 @@ NEWLINE (\n)
 			    
 			    // Variable exists - check global list first.
 			    struct var_list_node* varListPtr = GLOBAL_VAR_LIST_HEAD;
-			    struct var* varPtr;
 			    while(varListPtr)
 			    {
-				varPtr = varListPtr->pvr->val;
-				if(strcmp(varPtr->var_name, yytext) == 0)
+				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR_REF = varListPtr->pvr;
+				    yylval.VAR = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;
@@ -155,10 +153,9 @@ NEWLINE (\n)
 			    varListPtr = CURRENT_FUNC->var_list_head;
 			    while(varListPtr)
 			    {
-				varPtr = varListPtr->pvr->val;
-				if(strcmp(varPtr->var_name, yytext) == 0)
+				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR_REF = varListPtr->pvr;
+				    yylval.VAR = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;
@@ -168,10 +165,9 @@ NEWLINE (\n)
 			    varListPtr = CURRENT_FUNC->param_list_head;
 			    while(varListPtr)
 			    {
-				varPtr = varListPtr->pvr->val;
-				if(strcmp(varPtr->var_name, yytext) == 0)
+				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR_REF = varListPtr->pvr;
+				    yylval.VAR = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;

@@ -34,7 +34,7 @@ struct str_node
 struct var_node
 {
 	int nodetype;
-	struct varref* val;
+	struct var* val;
 };
 
 struct func_node
@@ -56,7 +56,7 @@ struct AST_node* create_AST_node(int nodetype, struct AST_node* l, struct AST_no
 struct AST_node* create_int_node(int nodetype, struct intlit* val);
 struct AST_node* create_flt_node(int nodetype, struct fltlit* val);
 struct AST_node* create_str_node(int nodetype, struct strlit* val);
-struct AST_node* create_var_node(int nodetype, struct varref* val);
+struct AST_node* create_var_node(int nodetype, struct var* val);
 struct AST_node* create_func_node(int nodetype, struct func_list_node* val);
 struct AST_node* create_ctrl_node(int nodetype, struct AST_node* c, struct AST_node* t, struct AST_node* f);
 

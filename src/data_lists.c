@@ -146,8 +146,7 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 	else
 	    temp = CURRENT_FUNC->var_list_head = CURRENT_FUNC->var_list_tail = malloc(sizeof(struct var_list_node));
 
-	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
-	temp->pvr = newVarRef(&pv);
+	temp->pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->prev = NULL;
 	temp->next = NULL;
     }
@@ -172,8 +171,8 @@ struct var_list_node* appendToVarList(int var_type, char* var_name)
 	    temp->prev = CURRENT_FUNC->var_list_tail;
 	    CURRENT_FUNC->var_list_tail = CURRENT_FUNC->var_list_tail->next = temp;
 	}
-	struct var* pv = newVar(var_type, var_name, isGlobal, isParam, size);
-	temp->pvr = newVarRef(&pv);
+	
+	temp->pv = newVar(var_type, var_name, isGlobal, isParam, size);
 	temp->next = NULL;
     }
 

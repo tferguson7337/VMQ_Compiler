@@ -81,10 +81,10 @@ void populateVMQFile(FILE** fp)
     struct intlit* pil = NULL;
     struct fltlit* pfl = NULL;
     struct strlit* psl = NULL;
-    struct varref* pvr = NULL;
+    struct var* pv = NULL;
     while(pvmn)
     {
-	pil = NULL; pfl = NULL; psl = NULL; pvr = NULL;
+	pil = NULL; pfl = NULL; psl = NULL; pv = NULL;
 	switch(pvmn->nodetype)
 	{
 	    case INT_LITERAL:	pil = ((struct int_list_node*)pvmn->node)->pil;
@@ -103,7 +103,7 @@ void populateVMQFile(FILE** fp)
 				break;
 
 	    case INT:
-	    case FLOAT:		pvr = ((struct var_list_node*)pvmn->node)->pvr;
+	    case FLOAT:		pv = ((struct var_list_node*)pvmn->node)->pv;
 				break;
 	}
 
@@ -121,11 +121,11 @@ void populateVMQFile(FILE** fp)
 	    globalMemSize = psl->VMQ_loc + 2;
 	else
 	    globalMemSize = psl->VMQ_loc + strlen(psl->val) - 1;
-    else	    // if(pvr), pvr points to last value in global memory (INT or FLOAT variable)
-	if(pvr->val->var_type == INT)
-	    globalMemSize = pvr->VMQ_loc + (VMQ_INT_SIZE * pvr->val->size);
+    else	    // if(pv), pv points to last value in global memory (INT or FLOAT variable)
+	if(pv->var_type == INT)
+	    globalMemSize = pv->VMQ_loc + (VMQ_INT_SIZE * pv->size);
 	else
-	    globalMemSize = pvr->VMQ_loc + (VMQ_FLT_SIZE * pvr->val->size);
+	    globalMemSize = pv->VMQ_loc + (VMQ_FLT_SIZE * pv->size);
 
     // Find main
     unsigned int start_line = 1;

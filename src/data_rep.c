@@ -45,6 +45,7 @@ struct var* newVar(unsigned int var_type, char* name, int isGlobal, int isParam,
 
 	if(!pv) { yyerror("\n\tnewVar() - Memory Allocation Failed!\n"); exit(-1); }
 
+	pv->VMQ_loc = 0;
 	pv->var_type = var_type;
 	pv->var_name = strdup(name);
 	pv->isGlobal = isGlobal;
@@ -52,16 +53,4 @@ struct var* newVar(unsigned int var_type, char* name, int isGlobal, int isParam,
 	pv->size = size;
 
 	return pv;
-}
-
-struct varref* newVarRef(struct var** var_ptr)
-{
-	struct varref* pvr = malloc(sizeof(struct varref));
-
-	if(!pvr) { yyerror("\n\tnewVarRef() - Memory Allocation Failed!\n"); exit(-1); }
-
-	pvr->VMQ_loc = 0;
-	pvr->val = *var_ptr;
-
-	return pvr;
 }

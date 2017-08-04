@@ -53,13 +53,11 @@ void eval(struct AST_node *a)
 	// FUNC_CALL - function call outside of assigment, throw away the return value (operand 1 == 0)
 	case FUNC_CALL:
 		func = ((struct func_node *)a->l)->val;
-		evalFuncCall(a, func->return_type, func->param_list_tail);
-		char *VMQ_line = malloc(32);
+		evalFuncCall(a, func->param_list_tail);
 		sprintf(VMQ_line, "c 0 %d", func->VMQ_data.quad_start_line);
 		appendToVMQList(VMQ_line);
 		sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 		appendToVMQList(VMQ_line);
-		free(VMQ_line);
 		break;
 
 	// Terminal cases are not handled here; return when encountered.
@@ -120,7 +118,6 @@ void eval(struct AST_node *a)
 
 	case PROG:
 		CURRENT_FUNC = NULL;
-		//eval(a->l);
 		eval(a->r);
 		break;
 

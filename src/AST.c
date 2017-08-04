@@ -51,7 +51,7 @@ struct AST_node* create_str_node(int nodetype, struct strlit* val)
 	return (struct AST_node*)psn;
 }
 
-struct AST_node* create_var_node(int nodetype, struct varref* val)
+struct AST_node* create_var_node(int nodetype, struct var* val)
 {
 	struct var_node* pvn = malloc(sizeof(struct var_node));
 

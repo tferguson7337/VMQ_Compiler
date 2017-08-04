@@ -7,11 +7,10 @@ void evalArrAccess(struct AST_node *a)
 	if (!a->r || a->r->nodetype == 0)
 		yyerror("evalArrAccess() encountered NULL or invalid \"a->\" nodetype");
 
-	char *VMQ_line = NULL, *VMQ_addr_l_prefix = NULL, *VMQ_addr_r_prefix = NULL;
+	char *addr_mode_l = NULL, *addr_mode_r = NULL;
 	struct func_list_node *func = NULL;
 	struct VMQ_temp_node *result = &CURRENT_FUNC->VMQ_data.math_result;
-	struct varref *l_node = ((struct var_node *)a->l)->val, *r_node = NULL;
-	struct var *l_val = l_node->val, *r_val = NULL;
+	struct var *l_val = ((struct var_node *)a->l)->val, *r_val = NULL;
 	unsigned int lit_loc;
 
 	// Size of VMQ int data type is stored at global memory addr 4
@@ -19,11 +18,11 @@ void evalArrAccess(struct AST_node *a)
 	char type_size_addr = (l_val->var_type == INT) ? '4' : '6';
 
 	if (l_val->isGlobal)
-		VMQ_addr_l_prefix = "#";
+		addr_mode_l = "#";
 	else if (l_val->isParam)
-		VMQ_addr_l_prefix = "/";
+		addr_mode_l = "/";
 	else
-		VMQ_addr_l_prefix = "#/-";
+		addr_mode_l = "#/-";
 
 	// expr must be evaluated to determine array index
 	struct AST_node *expr = a->r;
@@ -40,36 +39,32 @@ void evalArrAccess(struct AST_node *a)
 		else
 			evalIncOp(expr);
 
-		VMQ_line = malloc(32);
-
 		if (expr->l->nodetype == VAR_ACCESS)
 		{
-			r_node = ((struct var_node *)expr->l)->val;
-			r_val = r_node->val;
+			r_val = ((struct var_node *)expr->l)->val;
 
 			if (r_val->var_type == FLOAT)
 				yyerror("Floating point value used for array index");
 
 			if (r_val->isGlobal)
-				VMQ_addr_r_prefix = "";
+				addr_mode_r = "";
 			else if (r_val->isParam)
-				VMQ_addr_r_prefix = "@/";
+				addr_mode_r = "@/";
 			else
-				VMQ_addr_r_prefix = "/-";
+				addr_mode_r = "/-";
 
 			result->VMQ_loc = getNewTempVar(ADDR);
 
 			// Generates stmt that will calculate the offset from the array base addr, stored in temp_var
-			sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, result->VMQ_loc);
+			sprintf(VMQ_line, "m %s%d %c /-%d", addr_mode_r, r_val->VMQ_loc, type_size_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 			// Stores the final address of the l_val array element address, storing it temp_var
-			sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+			sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		}
 		else // expr->l->nodetype == ARR_ACCESS
 		{
-			r_node = ((struct var_node *)expr->l->l)->val;
-			r_val = r_node->val;
+			r_val = ((struct var_node *)expr->l->l)->val;
 
 			if (r_val->var_type == FLOAT)
 				yyerror("Floating point value used for array index");
@@ -81,11 +76,10 @@ void evalArrAccess(struct AST_node *a)
 			sprintf(VMQ_line, "m @/-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 
-			sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+			sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 			appendToVMQList(VMQ_line);
 		}
-
-		free(VMQ_line);
+		 
 		freeTempVar();
 
 		break;
@@ -98,47 +92,41 @@ void evalArrAccess(struct AST_node *a)
 	case MOD:
 		evalMath(expr);
 		if (result->type == FLOAT)
-			yyerror("evalArrAccess() - Floating point value used for array index");
-
-		VMQ_line = malloc(32);
+			yyerror("evalArrAccess() - Floating point value used for array index");		 
 
 		// Generates stmt that will calculate the offset from the array base addr, store in temp_var.
 		sprintf(VMQ_line, "m /-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
 
 		// Generates final stmt for calculating array element addr, store in temp_var.
-		sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+		sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
 
 		break;
 
 	case VAR_ACCESS:
-		r_node = ((struct var_node *)expr)->val;
-		r_val = r_node->val;
+		r_val = ((struct var_node *)expr)->val;
 
 		if (r_val->var_type == FLOAT)
 			yyerror("Floating point value used for array index");
 
 		if (r_val->isGlobal)
-			VMQ_addr_r_prefix = "";
+			addr_mode_r = "";
 		else if (r_val->isParam)
-			VMQ_addr_r_prefix = "@/";
+			addr_mode_r = "@/";
 		else
-			VMQ_addr_r_prefix = "/-";
+			addr_mode_r = "/-";
 
 		result->VMQ_loc = getNewTempVar(ADDR);
 
-		VMQ_line = malloc(32);
-
 		// Generates stmt that will calculate the offset from the array base addr, stored in temp_var
-		sprintf(VMQ_line, "m %s%d %c /-%d", VMQ_addr_r_prefix, r_node->VMQ_loc, type_size_addr, result->VMQ_loc);
+		sprintf(VMQ_line, "m %s%d %c /-%d", addr_mode_r, r_val->VMQ_loc, type_size_addr, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
 		// Stores the final address of the l_val array element address, storing it temp_var
-		sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+		sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
 
 		freeTempVar();
-		free(VMQ_line);
 
 		break;
 
@@ -149,11 +137,9 @@ void evalArrAccess(struct AST_node *a)
 			yyerror("Floating point value used for array index");
 
 		// Push parameters onto the stack
-		evalFuncCall(expr, func->return_type, func->param_list_tail);
+		evalFuncCall(expr, func->param_list_tail);
 
 		result->VMQ_loc = getNewTempVar(ADDR);
-
-		VMQ_line = malloc(32);
 
 		// The index will be the result of the function call.
 		sprintf(VMQ_line, "c #/-%d %d", result->VMQ_loc, func->VMQ_data.quad_start_line);
@@ -161,10 +147,8 @@ void evalArrAccess(struct AST_node *a)
 
 		sprintf(VMQ_line, "m /-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
-		sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
-		appendToVMQList(VMQ_line);
-
-		free(VMQ_line);
+		sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+		appendToVMQList(VMQ_line);		 
 
 		break;
 
@@ -177,29 +161,22 @@ void evalArrAccess(struct AST_node *a)
 
 		result->VMQ_loc = getNewTempVar(ADDR);
 
-		VMQ_line = malloc(32);
-
 		sprintf(VMQ_line, "m %d %c /-%d", lit_loc, type_size_addr, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
-		sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+		sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
 
 		freeTempVar();
-		free(VMQ_line);
 
 		break;
 
 	case ARR_ACCESS:
 		evalArrAccess(expr);
 
-		VMQ_line = malloc(32);
-
 		sprintf(VMQ_line, "m @/-%d %c /-%d", result->VMQ_loc, type_size_addr, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
-		sprintf(VMQ_line, "a %s%d /-%d /-%d", VMQ_addr_l_prefix, l_node->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
+		sprintf(VMQ_line, "a %s%d /-%d /-%d", addr_mode_l, l_val->VMQ_loc, result->VMQ_loc, result->VMQ_loc);
 		appendToVMQList(VMQ_line);
-
-		free(VMQ_line);
 
 		break;
 	}

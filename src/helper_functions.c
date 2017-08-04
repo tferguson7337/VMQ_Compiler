@@ -86,10 +86,10 @@ void configureGlobalMemorySpace()
     struct var_list_node* pvln = GLOBAL_VAR_LIST_HEAD;
     while(pvln)
     {
-	if(pvln->pvr->val->var_type == FLOAT)
+	if(pvln->pv->var_type == FLOAT)
 	{
-	    pvln->pvr->VMQ_loc = mem_addr;
-	    mem_addr += VMQ_FLT_SIZE * pvln->pvr->val->size;
+	    pvln->pv->VMQ_loc = mem_addr;
+	    mem_addr += VMQ_FLT_SIZE * pvln->pv->size;
 	}
 	pvln = pvln->next;
     }
@@ -107,10 +107,10 @@ void configureGlobalMemorySpace()
     pvln = GLOBAL_VAR_LIST_HEAD;
     while(pvln)
     {
-	if(pvln->pvr->val->var_type == INT)
+	if(pvln->pv->var_type == INT)
 	{
-	    pvln->pvr->VMQ_loc = mem_addr;
-	    mem_addr += VMQ_INT_SIZE * pvln->pvr->val->size;
+	    pvln->pv->VMQ_loc = mem_addr;
+	    mem_addr += VMQ_INT_SIZE * pvln->pv->size;
 	}
 
 	pvln = pvln->next;
@@ -153,7 +153,6 @@ void configureLocalMemorySpaces()
 
 	struct var_list_node* list_ptr = CURRENT_FUNC->param_list_head;
 	struct var_list_node* prev_node = NULL;
-	struct varref* vref = NULL;
 	struct var* v = NULL;
 	
 	// Start with the parameters, if any.
@@ -162,8 +161,8 @@ void configureLocalMemorySpaces()
 	    unsigned int param_addr = 6;
 	    while(list_ptr)
 	    {
-		vref = list_ptr->pvr;
-		vref->VMQ_loc = param_addr;
+		v = list_ptr->pv;
+		v->VMQ_loc = param_addr;
 		param_addr += 2;
 		list_ptr = list_ptr->next;
 	    }
@@ -183,9 +182,8 @@ void configureLocalMemorySpaces()
 	}
 
 	prev_node = NULL;
-	vref = NULL;
 	v = NULL;
-	int* var_total_size = &(CURRENT_FUNC->var_total_size);
+	unsigned int* var_total_size = &(CURRENT_FUNC->var_total_size);
 
 	// This ensures the first two bytes of local memory space are reserved, since
 	// not doing so leads to problems with casting from local VMQ address space /-2.
@@ -194,13 +192,12 @@ void configureLocalMemorySpaces()
 	// Traverse list, find first INT var or array of odd size - set VMQ_loc to 2;
 	while(list_ptr)
 	{
-	    vref = list_ptr->pvr;
-	    v = vref->val;
+	    v = list_ptr->pv;
 	    if(v->var_type == INT && v->size % 2)
 	    {
 		prev_node = list_ptr;
-		vref->VMQ_loc = VMQ_INT_SIZE * v->size + 2;
-		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+		v->VMQ_loc = VMQ_INT_SIZE * v->size + 2;
+		*var_total_size += VMQ_INT_SIZE * list_ptr->pv->size;
 		break;
 	    }
 
@@ -216,32 +213,31 @@ void configureLocalMemorySpaces()
 	    // Do the first variable so we can use prev_node in the loop
 	    list_ptr = CURRENT_FUNC->var_list_head;
 
-	    if(list_ptr->pvr->val->var_type == INT)
-		list_ptr->pvr->VMQ_loc = 4 + (VMQ_INT_SIZE * (list_ptr->pvr->val->size - 1));
+	    if(list_ptr->pv->var_type == INT)
+		list_ptr->pv->VMQ_loc = 4 + (VMQ_INT_SIZE * (list_ptr->pv->size - 1));
 	    else
-		list_ptr->pvr->VMQ_loc = 4 + (VMQ_FLT_SIZE * (list_ptr->pvr->val->size - 1));
-	    if(list_ptr->pvr->val->var_type == INT)
-		*var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+		list_ptr->pv->VMQ_loc = 4 + (VMQ_FLT_SIZE * (list_ptr->pv->size - 1));
+	    if(list_ptr->pv->var_type == INT)
+		*var_total_size += VMQ_INT_SIZE * list_ptr->pv->size;
 	    else
-		*var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
+		*var_total_size += VMQ_FLT_SIZE * list_ptr->pv->size;
 
 	    prev_node = list_ptr;
 	    list_ptr = list_ptr->next;
 
 	    while(list_ptr)
 	    {
-		vref = prev_node->pvr;
-		v = vref->val;
+		v = prev_node->pv;
 		if(v->var_type == INT)
-		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
+		    list_ptr->pv->VMQ_loc = v->VMQ_loc + list_ptr->pv->size * VMQ_INT_SIZE;
 		else
-		    list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
+		    list_ptr->pv->VMQ_loc = v->VMQ_loc + list_ptr->pv->size * VMQ_FLT_SIZE;
 		
-		printf("For VAR %s(%s), VMQ_loc set to %d\n", list_ptr->pvr->val->var_name, nodeTypeToString(list_ptr->pvr->val->var_type), list_ptr->pvr->VMQ_loc);
-		if(list_ptr->pvr->val->var_type == INT)
-		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+		printf("For VAR %s(%s), VMQ_loc set to %d\n", list_ptr->pv->var_name, nodeTypeToString(list_ptr->pv->var_type), list_ptr->pv->VMQ_loc);
+		if(list_ptr->pv->var_type == INT)
+		    *var_total_size += VMQ_INT_SIZE * list_ptr->pv->size;
 		else
-		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
+		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pv->size;
 
 		prev_node = list_ptr;
 		list_ptr = list_ptr->next;
@@ -254,22 +250,19 @@ void configureLocalMemorySpaces()
 	    // Scan for floats, set their VMQ_locs first.
 	    list_ptr = CURRENT_FUNC->var_list_head;
 
-	    
-
 	    while(list_ptr)
 	    {
 		if(list_ptr == skip_node) { list_ptr = list_ptr->next; continue; }
-		vref = prev_node->pvr;
-		v = vref->val;
+		v = prev_node->pv;
 		
-		if(list_ptr->pvr->val->var_type == FLOAT)
+		if(list_ptr->pv->var_type == FLOAT)
 		{
-		    if(v->var_type == INT)			// ensures first float is properly aligned
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + ((vref->VMQ_loc + 2) % VMQ_FLT_SIZE) + list_ptr->pvr->val->size * VMQ_INT_SIZE;
+		    if(v->var_type == INT)		    // ensures first float is properly aligned
+			list_ptr->pv->VMQ_loc = v->VMQ_loc + ((v->VMQ_loc + 2) % VMQ_FLT_SIZE) + list_ptr->pv->size * VMQ_INT_SIZE;
 		    else
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
+			list_ptr->pv->VMQ_loc = v->VMQ_loc + list_ptr->pv->size * VMQ_FLT_SIZE;
 
-		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pvr->val->size;
+		    *var_total_size += VMQ_FLT_SIZE * list_ptr->pv->size;
 		    prev_node = list_ptr;
 		}
 
@@ -281,17 +274,16 @@ void configureLocalMemorySpaces()
 	    while(list_ptr)
 	    {
 		if(list_ptr == skip_node) { list_ptr = list_ptr->next; continue; }
-		vref = prev_node->pvr;
-		v = vref->val;
-
-		if(list_ptr->pvr->val->var_type == INT)
+		v = prev_node->pv;
+		
+		if(list_ptr->pv->var_type == INT)
 		{
 		    if(v->var_type == INT)
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_INT_SIZE;
+			list_ptr->pv->VMQ_loc = v->VMQ_loc + list_ptr->pv->size * VMQ_INT_SIZE;
 		    else
-			list_ptr->pvr->VMQ_loc = vref->VMQ_loc + list_ptr->pvr->val->size * VMQ_FLT_SIZE;
+			list_ptr->pv->VMQ_loc = v->VMQ_loc + list_ptr->pv->size * VMQ_FLT_SIZE;
 
-		    *var_total_size += VMQ_INT_SIZE * list_ptr->pvr->val->size;
+		    *var_total_size += VMQ_INT_SIZE * list_ptr->pv->size;
 		    prev_node = list_ptr;
 		}
 
@@ -304,7 +296,7 @@ void configureLocalMemorySpaces()
 
 	// Add padding for the temporary variables to ensure that casting can work for the first temporary variable.
 	unsigned int temp_start;
-	if(prev_node->pvr->val->var_type == INT)
+	if(prev_node->pv->var_type == INT)
 	    temp_start = CURRENT_FUNC->var_total_size + VMQ_INT_SIZE + VMQ_ADDR_SIZE;
 	else
 	    temp_start = CURRENT_FUNC->var_total_size + VMQ_FLT_SIZE + VMQ_ADDR_SIZE;
@@ -412,10 +404,10 @@ void dumpGlobalDataLists()
     else
 	while(pvln)
 	{
-	    printf("%03d\t", pvln->pvr->VMQ_loc);			    fflush(stdout);
-	    printf("%-15s\t", pvln->pvr->val->var_name);		    fflush(stdout);
-	    printf("%-5s\t", nodeTypeToString(pvln->pvr->val->var_type));   fflush(stdout);
-	    printf("%-3d\t", pvln->pvr->val->size);			    fflush(stdout);
+	    printf("%03d\t", pvln->pv->VMQ_loc);			    fflush(stdout);
+	    printf("%-15s\t", pvln->pv->var_name);			    fflush(stdout);
+	    printf("%-5s\t", nodeTypeToString(pvln->pv->var_type));	    fflush(stdout);
+	    printf("%-3d\t", pvln->pv->size);				    fflush(stdout);
 	    printf("(0x%llX)\n", (unsigned long long)pvln);		    fflush(stdout);
 	    pvln = pvln->next;
 	}
@@ -443,12 +435,10 @@ void dumpGlobalDataLists()
 	    if(!paramPtr){ printf("\tPARAM LIST EMPTY!\n"); fflush(stdout); }
 	    while(paramPtr)
 	    {
-		struct varref* vnode = paramPtr->pvr;
-		struct var* v = vnode->val;
+		struct var* v = paramPtr->pv;
 		printf("\t%-15s\t", v->var_name);				fflush(stdout);
 		printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
-		printf("@/%d\t", vnode->VMQ_loc);
-		fflush(stdout);
+		printf("@/%d\t", v->VMQ_loc);					fflush(stdout);
 		printf("(0x%llX)\n", (unsigned long long)paramPtr);		fflush(stdout);
 		    
 		paramPtr = paramPtr->next;
@@ -458,14 +448,13 @@ void dumpGlobalDataLists()
 	    if(!varPtr){ printf("\tVAR LIST EMPTY!\n"); fflush(stdout); }
 	    while(varPtr)
 	    {
-		struct varref* vnode = varPtr->pvr;
-		struct var* v = vnode->val;
+		struct var* v = varPtr->pv;
 		printf("\t%-15s\t", v->var_name);				fflush(stdout);
 		printf("%s(%d)\t", nodeTypeToString(v->var_type), v->size);	fflush(stdout);
 		if(v->isGlobal)
-		    printf("%03d\t", vnode->VMQ_loc);
+		    printf("%03d\t", v->VMQ_loc);
 		else
-		    printf("/-%d\t", vnode->VMQ_loc);
+		    printf("/-%d\t", v->VMQ_loc);
 		fflush(stdout);
 		printf("(0x%llX)\n", (unsigned long long)varPtr);		fflush(stdout);
 		varPtr = varPtr->next;
@@ -593,7 +582,7 @@ void dumpTempVarStack(char op)
 
     unsigned int arr_size = 64;
     char separator[arr_size];
-    for(int i = 0; i < arr_size - 1; i++)
+    for(unsigned int i = 0; i < arr_size - 1; i++)
 	separator[i] = '=';
 
     separator[arr_size - 1] = '\0';
