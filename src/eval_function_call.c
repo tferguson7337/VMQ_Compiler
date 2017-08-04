@@ -203,10 +203,7 @@ void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_
 	case MUL:
 	case DIV:
 	case MOD:
-		if (arg->nodetype == ADD || arg->nodetype == SUB)
-			evalAddOp(arg);
-		else
-			evalMulOp(arg);
+		evalMath(arg);
 
 		VMQ_line = malloc(32);
 

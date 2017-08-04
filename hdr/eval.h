@@ -19,8 +19,7 @@ extern void evalAssignOp(struct AST_node *a);
 extern void evalIncOp(struct AST_node *a);
 extern void evalArrAccess(struct AST_node *a);
 extern void evalFuncCall(struct AST_node *a, unsigned int return_type, struct var_list_node *param);
-extern void evalAddOp(struct AST_node *a);
-extern void evalMulOp(struct AST_node *a);
+extern void evalMath(struct AST_node *a);
 
 static inline unsigned int getNewTempVar(unsigned int type)
 {

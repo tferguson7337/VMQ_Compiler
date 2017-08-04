@@ -124,10 +124,7 @@ void evalOutput(struct AST_node *a)
 	case MUL:
 	case DIV:
 	case MOD:
-		if (a->nodetype == ADD || a->nodetype == SUB)
-			evalAddOp(a);
-		else
-			evalMulOp(a);
+		evalMath(a);
 
 		VMQ_line = malloc(32);
 		sprintf(VMQ_line, "p #/-%d", result->VMQ_loc);

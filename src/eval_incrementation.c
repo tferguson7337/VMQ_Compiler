@@ -148,10 +148,7 @@ void evalIncOp(struct AST_node *a)
 	case MUL:
 	case DIV:
 	case MOD:
-		if (ntype == ADD || ntype == SUB)
-			evalAddOp(expr);
-		else
-			evalMulOp(expr);
+		evalMath(expr);
 
 		rhs_addr = result->VMQ_loc;
 

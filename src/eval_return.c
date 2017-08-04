@@ -87,10 +87,7 @@ void evalReturn(struct AST_node *a)
 	case MUL:
 	case DIV:
 	case MOD:
-		if (a->nodetype == ADD || a->nodetype == SUB)
-			evalAddOp(a);
-		else
-			evalMulOp(a);
+		evalMath(a);
 
 		if (result->type == INT && return_type == INT)
 			op_code = 'i';

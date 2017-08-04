@@ -96,11 +96,7 @@ void evalArrAccess(struct AST_node *a)
 	case MUL:
 	case DIV:
 	case MOD:
-		if (ntype == ADD || ntype == SUB)
-			evalAddOp(expr);
-		else
-			evalMulOp(expr);
-
+		evalMath(expr);
 		if (result->type == FLOAT)
 			yyerror("evalArrAccess() - Floating point value used for array index");
 

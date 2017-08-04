@@ -200,10 +200,7 @@ void evalAssignOp(struct AST_node *a)
 			lhs_addr = getNewTempVar(ADDR);
 		}
 
-		if (ntype == ADD || ntype == SUB)
-			evalAddOp(a->r);
-		else
-			evalMulOp(a->r);
+		evalMath(a->r);
 
 		rhs_addr = result->VMQ_loc;
 

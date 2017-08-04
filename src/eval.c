@@ -41,17 +41,13 @@ void eval(struct AST_node *a)
 		evalIncOp(a);
 		break;
 
-	// ADDOPs
+	// ADDOPs & MULOPs
 	case ADD:
 	case SUB:
-		evalAddOp(a);
-		break;
-
-	// MULOPs
 	case MUL:
 	case DIV:
 	case MOD:
-		evalMulOp(a);
+		evalMath(a);
 		break;
 
 	// FUNC_CALL - function call outside of assigment, throw away the return value (operand 1 == 0)
