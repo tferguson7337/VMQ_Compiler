@@ -144,7 +144,7 @@ L26 h
 		  ===	      ===
 		 /   \	     /   \
 		/     \     /     \
-	       2       3   5	   3
+       2       3   5	   3
 
     Due to the way the Target Language Syntax has been defined,
     we do not have to worry about a few conditional expressions
@@ -315,12 +315,12 @@ L33 h		;   return 0 and end program
 			       OR
 			    /      \
 			 NOT	    AND
-		        /	   /   \
-		      AND	 <=     >
-		     /   \	/  \   / \
-		    <     >    d    a c   a
-		   / \   / \
-	          a   b b   c
+	        /	       /   \
+		  AND	     <=     >
+		 /   \		/  \   / \
+		<     >    d    a c   a
+	   / \   / \
+      a   b b   c
 
     So how to handle the NOT?  How should the VMQ code differ?
     From De Morgans Law --> ~(X && Y) == (~X || ~Y)
@@ -352,12 +352,12 @@ L33 h		;   return 0 and end program
 			       OR
 			     /	  \
 			   /	    AND
-			 /	   /   \
-		        OR	 <=     >
-		      /    \    /  \   / \
-		    <=     >=  d    a c   a
-		   /  \   /  \
-	          a    b b    c
+			 /	       /   \
+		    OR	      <=     >
+		  /    \     /  \   / \
+		<=     >=   d    a c   a
+	   /  \   /  \
+      a    b b    c
 
     ===============
     Target VMQ code
@@ -443,19 +443,19 @@ L34 h		;   return 0 and end program
      --------------------------------------------------------------
 				        AND
 				    /	     \
-				/		NOT
+				  /		      NOT
 			    /			     \
 			  OR			      OR
-		        /    \			    /    \
-		     /		\		  >	   \
-		  NOT		 AND		 / \	     \
-		 /		/   \		y   x	     NOT
-		>=	      /      >			    /
-	       /  \	    OR	    / \			   >= 
-	      x    y	  /    \   z   y		  /  \
-			 <     >=			 z    x
+		    /    \			    /    \
+		   /      \	    	   >	   \
+		  NOT	 AND		  / \	     \
+		 /		/   \		 y   x	     NOT
+		>=	   /     >			         /
+	   /  \	  OR    / \		            >= 
+      x    y  / \  z   y               /  \
+			 <    >=			 	  z    x
 			/ \   /  \
-		       x   y x    z
+		   x   y x    z
 
      --------------------------------------------------------------
      An equivalent tree with the NOTs transformed out via DM's Law:
@@ -463,19 +463,19 @@ L34 h		;   return 0 and end program
 
 				        AND
 				    /	     \
-				/		 \
+				  /		       \
 			    /			     \
 			  OR			     AND
-		        /    \			    /   \
-		      <		\		  <=	 >=
-		     / \	 AND		 /  \	/  \  
-		    x   y	/   \		y    x z    x       
-			      /      >			    
-			    OR	    / \			   
-			  /    \   z   y		  
-			 <     >=			 
-			/ \   /  \
-		       x   y x    z
+		    /    \				/   \
+		   <	  \			  <=	 >=
+		  / \	  AND		 /  \	/  \  
+		 x   y	 /   \		y    x z    x       
+			    /     >			    
+			  OR	 / \			   
+			 / \    z   y		  
+			<   >=			 
+		   / \  / \
+		  x   y x  z
 
     Let's define the VMQ locations of the variables used:
 		x @ #/-4, y @ #/-6, z @ #/-8
@@ -504,8 +504,8 @@ L34 h		;   return 0 and end program
     =================================================
     Case 1:  AND SUBTREE with two relational children
     =================================================
-			    AND
-			  /     \
+					AND
+				  /     \
 		       REL_1   REL_2
 		       /   \   /   \
 		     lhs  rhs lhs  rhs
@@ -564,8 +564,8 @@ L34 h		;   return 0 and end program
     ================================================
     Case 2:  OR SUBTREE with two relational children
     ================================================
-			     OR
-			  /      \
+					 OR
+				  /      \
 		       REL_1    REL_2
 		       /   \    /   \
 		     lhs  rhs lhs  rhs
@@ -624,18 +624,18 @@ L34 h		;   return 0 and end program
     ===================================================
     Case 3:  AND SUBTREE with one relational child(LHS)
     ===================================================
-			    AND
-			  /     \
+					AND
+				  /     \
 		      REL_1    (AND/OR) 
-		      /   \	  /\
+		      /   \	  	  /\
 		    lhs   rhs	 /__\ --> REL_2 is left-most 
-					  descendent of REL_1's
-					  sibling.
+								  descendent of REL_1's
+								  sibling.
 
     Note about REL_2:	In this case, we'll only evaluate REL_1,
-			not REL_2.  REL_2 will be evaluated on its
-			own later.  REL_2 will just be a jump
-			destination for when REL_1 == true.
+						not REL_2.  REL_2 will be evaluated on its
+						own later.  REL_2 will just be a jump
+						destination for when REL_1 == true.
     ---------------			  
     Cases for REL_1
     ---------------
@@ -663,8 +663,8 @@ L34 h		;   return 0 and end program
     ===================================================
     Case 4:  AND SUBTREE with one relational child(RHS)
     ===================================================
-			    AND
-			  /     \
+					AND
+				  /     \
 		    (AND/OR)   REL_2
 		       /\      /   \
 		      /__\   lhs   rhs
@@ -704,18 +704,18 @@ L34 h		;   return 0 and end program
     ==================================================
     Case 5:  OR SUBTREE with one relational child(LHS)
     ==================================================
-			     OR
-			  /      \
+					 OR
+				  /      \
 		      REL_1     (AND/OR) 
-		      /   \	   /\
+		      /   \	   	   /\
 		    lhs   rhs	  /__\ --> REL_2 is left-most 
-					   descendent of REL_1's
-					   sibling.
+								   descendent of REL_1's
+								   sibling.
 
     Note about REL_2:	In this case, we'll only evaluate REL_1,
-			not REL_2.  REL_2 will be evaluated on its
-			own later.  REL_2 will just be a jump
-			destination for when REL_1 == false.
+						not REL_2.  REL_2 will be evaluated on its
+						own later.  REL_2 will just be a jump
+						destination for when REL_1 == false.
 
     ---------------			  
     Cases for REL_1
@@ -747,8 +747,8 @@ L34 h		;   return 0 and end program
     ==================================================
     Case 6:  OR SUBTREE with one relational child(RHS)
     ==================================================
-			     OR
-			  /      \
+					 OR
+				  /      \
 		    (AND/OR)    REL_2
 		       /\       /   \
 		      /__\    lhs   rhs
@@ -789,10 +789,10 @@ L34 h		;   return 0 and end program
     Case 7:  AND/OR SUBTREE with no relational children
     ===================================================
 
-			(AND/OR)
-			/      \
+				(AND/OR)
+				/      \
 		  (AND/OR)   (AND/OR)
-		     /\		/\
+		     /\			/\
 		    /__\       /__\
 
     Nothing to be done here, just traverse the subtrees.
@@ -806,21 +806,21 @@ L34 h		;   return 0 and end program
     we to know where to jump to exactly when short circuiting?  Let's take a look at the
     example we were about to go over before this line-counting digression.
 
-					AND  <--- 5
+					   AND  <--- 5
 				    /	     \
-				/		 \
-			    /	   2		     \
-		1 --->	  OR	   |		     AND  <--- 4
-		        /    \	   v		    /   \
-		      <		\  		  <=	 >=
-		     / \	 AND		 /  \	/  \  
-		    x   y	/   \		y    x z    x       
-			      /      >			    
-		     3 ---> OR	    / \			   
-			  /    \   z   y		  
-			 <     >=			 
-			/ \   /  \
-		       x   y x    z
+				 /	       	    \
+			  /	   2		       \
+	1 --->	 OR	   |		         AND  <--- 4
+	       /    \  v		        /   \
+		  <		 \  		      <=	 >=
+	     / \	 AND		     /  \	/  \  
+	    x   y	/   \		    y    x z    x       
+		       /     >			    
+	  3 ---> OR	    / \			   
+		    /   \  z   y		  
+		   <     >=			 
+		  / \   /  \
+		 x   y x    z
 
     Short circuiting is possible for any AND/OR operation.  For AND, we short-circuit when the
     LHS evaluates to false since the RHS can no longer have any affect on the outcome of the AND.
@@ -851,15 +851,15 @@ L34 h		;   return 0 and end program
     There is a noticable pattern that can be taken advantage of to create a general 
     short-circuit-finding algorithm.  Let's take a look at some basic examples:
 
-				    OR
-				   /
-				AND
-			       /   \
-			     OR    /\
-			    /	  /__\
-			  OR
-			 /
-	  START ---->  OR
+								OR
+							   /
+							AND
+							/   \
+						  OR    /\
+						 /	   /__\
+					   OR
+					  /
+	   START ---->  OR
 
     Let's say we start at the leaf OR (marked), and the LHS evaluates to true.  The short-circuit
     target can be determined in this case by traversing back up to the root (unwinding the stack).
@@ -870,15 +870,15 @@ L34 h		;   return 0 and end program
     the left-most descendent node in the AND's right subtree.  If we reach the root and the node
     type is an OR, then the short-circuit target is the start of the true code block.
 
-				    AND
-				   /
-				 OR
-			        /  \
-			     AND   /\
-			    /     /__\
-			  AND
-			 /
-	  START ----> AND
+						      AND
+							 /
+						    OR
+						   /  \
+						 AND  /\
+						/    /__\
+					  AND
+					 /
+	  START ---->  AND
     
     The opposite applies to the short-circuit logic for AND nodes.  If the LHS evaluates to false
     for the leaf AND node, then we traverse back up to the root.  If an OR is encountered, then
@@ -894,13 +894,13 @@ L34 h		;   return 0 and end program
 
 				    AND
 				       \
-					OR
+						OR
 				       /  \
 				      /   AND
 				     /\	    \
 				    /__\    AND
-					      \
-					      AND <---- START
+							  \
+					          AND <---- START
 
     Here, the short-circuit target from the marked node is always the false code block.
 
