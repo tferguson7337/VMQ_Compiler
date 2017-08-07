@@ -19,14 +19,6 @@ void init()
     GLOBAL_SCOPE = SCOPE_STACK_HEAD;
 
     DEBUG = FLEX_DEBUG = BISON_DEBUG = 0;
-
-    // Add 0 and 1 to global VMQ space to represent TRUE and FALSE.
-    appendToIntList("0"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "0");
-    appendToIntList("1"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "1");
-
-    // Add 2 and 4 to global VMQ space to assist with array subscripting.
-    appendToIntList("2"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "2");
-    appendToIntList("4"); addToSymbolTable(&(GLOBAL_SCOPE->symTab), "4");
 }
 
 void configureGlobalMemorySpace()
@@ -57,17 +49,8 @@ void configureGlobalMemorySpace()
 
     if(DEBUG) { printf("CONFIGURING GLOBAL MEMORY SPACE..."); fflush(stdout); }
 
-    unsigned int mem_addr;
+    unsigned int mem_addr = 0;
 
-    // Literal ints 0, 1, 2, and 4 will always be in the int list - set their addrs first.
-    struct int_list_node* piln = INT_LIST_HEAD;
-    for(mem_addr = 0; mem_addr != 8; mem_addr += VMQ_INT_SIZE)
-    {
-	piln->pil->VMQ_loc = mem_addr;
-	appendToVMQMemList(INT_LITERAL, piln);
-	piln = piln->next;
-    }
-    
     // Literal floats come next.
     struct flt_list_node* pfln = FLT_LIST_HEAD;
     while(pfln)
@@ -94,7 +77,8 @@ void configureGlobalMemorySpace()
 	pvln = pvln->next;
     }
 
-    // Literal integers come next - recall that first two list elements were already handled.
+    // Literal integers come next.
+    struct int_list_node* piln = INT_LIST_HEAD;
     while(piln)
     {
 	piln->pil->VMQ_loc = mem_addr;

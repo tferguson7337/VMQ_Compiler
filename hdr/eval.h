@@ -16,6 +16,7 @@ extern void eval(struct AST_node *a);
 extern void evalReturn(struct AST_node *a);
 extern void evalIf(struct AST_node *a);
 extern void evalWhile(struct AST_node *a);
+extern void evalCond(struct AST_node *a);
 extern void evalInput(struct AST_node *a);
 extern void evalOutput(struct AST_node *a);
 extern void evalAssignOp(struct AST_node *a);

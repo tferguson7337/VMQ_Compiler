@@ -62,9 +62,10 @@
 
 %nonassoc <op_type> RELOP
 %right ASSIGNOP
-%left ADDOP
-%left MULOP
-%nonassoc NOT UNARY
+%left ADDOP OR
+%left MULOP AND
+%right NOT
+%nonassoc UNARY
 
 // Used in eval, declared here to let Bison handle assigning it a value.
 %token ADDR
@@ -194,8 +195,8 @@ bool_term:		bool_factor						{ $$ = $1;}
 		    |	bool_term AND bool_factor				{ $$ = create_AST_node(AND, $1, $3); }
 ;
 
-bool_factor:		NOT bool_factor						{ $$ = create_AST_node(NOT, NULL, $2); }
-		    |	'(' bool_expression ')'					{ $$ = $2; }
+bool_factor:		NOT bool_factor						{ $$ = create_AST_node(NOT, $2, NULL); }
+		    |	'(' bool_expression ')'		%prec UNARY		{ $$ = $2; }
 		    |	simple_expression RELOP simple_expression		{ 
 										    int op; 
 										    switch($2)

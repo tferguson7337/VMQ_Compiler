@@ -3,7 +3,7 @@ HDIR = hdr
 DIRS = -I ${CDIR} -I ${HDIR}
 COMP = gcc
 OPTM = -Ofast
-LINK_LIB = 
+LINK_LIB =
 NAME = $@
 WARN = -Wall -Wextra -pedantic
 FLAGS = ${WARN} ${OPTM} ${LINK_LIB} ${DIRS} -o ${NAME}
@@ -16,9 +16,9 @@ cVMQ:		${CDIR}/lexer.c ${CDIR}/parser.tab.c \
 		${CDIR}/error_handling.c ${CDIR}/eval.c ${CDIR}/eval_array.c \
 		${CDIR}/eval_assign.c ${CDIR}/eval_function_call.c \
 		${CDIR}/eval_if.c ${CDIR}/eval_incrementation.c ${CDIR}/eval_input.c \
-		${CDIR}/eval_math.c ${CDIR}/eval_output.c ${CDIR}/eval_return.c \
-		${CDIR}/eval_while.c ${CDIR}/fileIO.c ${CDIR}/helper_functions.c \
-		${CDIR}/scope.c ${CDIR}/symbol_table.c \
+		${CDIR}/eval_math.c ${CDIR}/eval_output.c ${CDIR}/eval_conditional.c \
+		${CDIR}/eval_return.c ${CDIR}/eval_while.c ${CDIR}/fileIO.c \
+		${CDIR}/helper_functions.c ${CDIR}/scope.c ${CDIR}/symbol_table.c \
 		${HDIR}/AST.h ${HDIR}/data_lists.h  ${HDIR}/data_rep.h ${HDIR}/error_handling.h \
 		${HDIR}/eval.h ${HDIR}/fileIO.h ${HDIR}/helper_functions.h ${HDIR}/parser.tab.h \
 		${HDIR}/scope.h ${HDIR}/symbol_table.h
@@ -26,8 +26,8 @@ cVMQ:		${CDIR}/lexer.c ${CDIR}/parser.tab.c \
 		${CDIR}/main.c ${CDIR}/AST.c ${CDIR}/error_handling.c ${CDIR}/eval.c \
 		${CDIR}/eval_array.c ${CDIR}/eval_assign.c ${CDIR}/eval_function_call.c \
 		${CDIR}/eval_if.c ${CDIR}/eval_incrementation.c ${CDIR}/eval_input.c \
-		${CDIR}/eval_math.c ${CDIR}/eval_output.c ${CDIR}/eval_return.c \
-		${CDIR}/eval_while.c ${CDIR}/fileIO.c ${CDIR}/data_lists.c \
+		${CDIR}/eval_math.c ${CDIR}/eval_output.c ${CDIR}/eval_conditional.c \
+		${CDIR}/eval_return.c ${CDIR}/eval_while.c ${CDIR}/fileIO.c ${CDIR}/data_lists.c \
 		${CDIR}/data_rep.c ${CDIR}/helper_functions.c ${CDIR}/scope.c ${CDIR}/symbol_table.c ${ERR_OUT}
 
 ${CDIR}/lexer.c:	${CDIR}/lexer.l
