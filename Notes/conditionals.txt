@@ -337,8 +337,8 @@ L33 h		;   return 0 and end program
     will be changed to their complement (AND -> OR, OR -> AND, etc.) until the entire
     subtree is traversed.  The NOT node will be removed, and the NOTs parent node will
     be directly connected to NOTs child.  If another NOT is encountered after the first,
-    this NOT will be removed in the same manner as the first and traversal will end
-    (two NOTs cancel each other out).
+    this NOT will be removed in the same manner as the first, and any descendents after
+	will not be modified (two NOTs cancel each other out).
 
     A possibly more efficient approach would be to pass a NOT counter while doing the
     evaluation traversal.  Anytime (not_counter % 2 == 1), we'll perform evaluations
