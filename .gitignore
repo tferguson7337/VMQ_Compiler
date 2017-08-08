@@ -1,3 +1,11 @@
-Notes
-Notes/*.txt
-Notes/conditionals.txt
+.gitignore
+*.q
+*.cpp
+cVMQ
+VMQ
+.joverc
+*.t
+*.json
+*/parser.tab.*
+*/lexer.c
+gcc_stderr
