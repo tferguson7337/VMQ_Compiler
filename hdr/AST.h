@@ -4,7 +4,7 @@
 /* General AST_node struct */
 struct AST_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct AST_node* l;
 	struct AST_node* r;
 };
@@ -12,52 +12,70 @@ struct AST_node
 /* Used for INT_LITERAL terminal cases (i.e., AST leaves) */
 struct int_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct intlit* val;
 };
 
 /* Used for FLT_LITERAL terminal cases (i.e., AST leaves) */
 struct flt_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct fltlit* val;
 };
 
 /* Used for STR_LITERAL terminal cases (i.e., AST leaves) */
 struct str_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct strlit* val;
 };
 
 /* Used for ID terminal cases (i.e., AST leaves) */
 struct var_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct var* val;
 };
 
 struct func_node
 {
-    int nodetype;
+    unsigned int nodetype;
     struct func_list_node* val;
 };
 
 /* Special node for IF_ELSE/WHILE statements */
 struct ctrl_node
 {
-	int nodetype;
+	unsigned int nodetype;
 	struct AST_node* c;	//	Pointer to condition code
 	struct AST_node* t;	//	Pointer to true code
 	struct AST_node* f;	//	Pointer to false code
 };
 
-struct AST_node* create_AST_node(int nodetype, struct AST_node* l, struct AST_node* r);
-struct AST_node* create_int_node(int nodetype, struct intlit* val);
-struct AST_node* create_flt_node(int nodetype, struct fltlit* val);
-struct AST_node* create_str_node(int nodetype, struct strlit* val);
-struct AST_node* create_var_node(int nodetype, struct var* val);
-struct AST_node* create_func_node(int nodetype, struct func_list_node* val);
-struct AST_node* create_ctrl_node(int nodetype, struct AST_node* c, struct AST_node* t, struct AST_node* f);
+/* Special node for boolean expressions */
+struct logic_node
+{
+    unsigned int nodetype;
+    unsigned int line_start;
+    struct AST_node* l, *r;
+    struct logic_node* sc_target, *t_target, *f_target;
+};
+
+struct relop_node
+{
+    unsigned int nodetype;
+    struct AST_node* l, *r;
+    struct VMQ_list_node** cond_jump_stmt, **uncond_jump_stmt;
+};
+
+struct AST_node* create_AST_node(unsigned int nodetype, struct AST_node* l, struct AST_node* r);
+struct AST_node* create_int_node(unsigned int nodetype, struct intlit* val);
+struct AST_node* create_flt_node(unsigned int nodetype, struct fltlit* val);
+struct AST_node* create_str_node(unsigned int nodetype, struct strlit* val);
+struct AST_node* create_var_node(unsigned int nodetype, struct var* val);
+struct AST_node* create_func_node(unsigned int nodetype, struct func_list_node* val);
+struct AST_node* create_ctrl_node(unsigned int nodetype, struct AST_node* c, struct AST_node* t, struct AST_node* f);
+struct AST_node* create_logic_node(unsigned int nodetype, struct AST_node* l, struct AST_node* r);
+struct AST_node* create_relop_node(unsigned int nodetype, struct AST_node* l, struct AST_node* r);
 
 #endif

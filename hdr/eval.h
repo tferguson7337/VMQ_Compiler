@@ -5,6 +5,7 @@
 #include "helper_functions.h"
 #include "parser.tab.h"
 #include "error_handling.h"
+#include <strings.h>
 
 // Fixed-size string space, used when generating VMQ statements.
 char VMQ_line[32];
@@ -24,6 +25,50 @@ extern void evalIncOp(struct AST_node *a);
 extern void evalArrAccess(struct AST_node *a);
 extern void evalFuncCall(struct AST_node *a, struct var_list_node *param);
 extern void evalMath(struct AST_node *a);
+
+// Conditional Helper Functions - Used in evalIf() and evalCond()
+void DMTransformTree(struct AST_node** root, unsigned int not_count);
+void configureLogicNodes(struct AST_node** root);
+struct logic_node* findShortCircuitTarget(struct logic_node* ln);
+struct logic_node* findTrueTarget(struct logic_node* ln);
+struct logic_node* findFalseTarget(struct logic_node* ln);
+
+static inline unsigned int isRelOp(unsigned int type)
+{
+    if(type == LT || type == GT || type == LTE || type == GTE || type == EQ || type == NEQ)
+	return 1;
+    else
+	return 0;
+}
+
+static inline unsigned int getRelOpComplement(unsigned int type)
+{
+    unsigned int complement = 0;
+    switch(type)
+    {
+	case LT:    complement = GTE;
+		    break;
+
+	case GT:    complement = LTE;
+		    break;
+
+	case LTE:   complement = GT;
+		    break;
+
+	case GTE:   complement = LT;
+		    break;
+
+	case EQ:    complement = NEQ;
+		    break;
+
+	case NEQ:   complement = EQ;
+		    break;
+
+	default:    yyerror("getRelOpComplement() - invalid argument");
+    }
+    
+    return complement;
+}
 
 // Helper function that "allocates" new temporary variables for storing intermediate values when evaluating expressions.
 static inline unsigned int getNewTempVar(unsigned int type)

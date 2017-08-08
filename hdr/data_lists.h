@@ -50,6 +50,12 @@ struct VMQ_mem_node
     struct VMQ_mem_node* next;
 };
 
+struct logic_stack_node
+{
+    struct logic_node* val;
+    struct logic_stack_node* next;
+};
+
 typedef struct int_list_node* INT_LIST;
 typedef struct flt_list_node* FLT_LIST;
 typedef struct var_list_node* VAR_LIST;

@@ -188,11 +188,11 @@ literal:		INT_LITERAL						{ $$ = create_int_node(INT_LITERAL, $1); }
 ;
 
 bool_expression:	bool_term						{ $$ = $1;}
-		    |	bool_expression OR bool_term				{ $$ = create_AST_node(OR, $1, $3); }
+		    |	bool_expression OR bool_term				{ $$ = create_logic_node(OR, $1, $3); }
 ;
 
 bool_term:		bool_factor						{ $$ = $1;}
-		    |	bool_term AND bool_factor				{ $$ = create_AST_node(AND, $1, $3); }
+		    |	bool_term AND bool_factor				{ $$ = create_logic_node(AND, $1, $3); }
 ;
 
 bool_factor:		NOT bool_factor						{ $$ = create_AST_node(NOT, $2, NULL); }
@@ -210,7 +210,7 @@ bool_factor:		NOT bool_factor						{ $$ = create_AST_node(NOT, $2, NULL); }
 											default: yyerror("\n\tParser: Unknown RELOP value encountered!\n"); exit(-1);
 										    }
 										    
-										    $$ = create_AST_node(op, $1, $3);
+										    $$ = create_relop_node(op, $1, $3);
 										}
 ;
 
