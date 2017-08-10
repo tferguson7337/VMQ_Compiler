@@ -21,5 +21,5 @@ int gcd(int a,int b) {
 
 int main() {
     cout << "Enter two integers: ";
-    cin >> x >> y; cout << "The GCD is" << gcd(x,y) << endl;
+    cin >> x >> y; cout << "The GCD is " << gcd(x,y) << endl;
 }

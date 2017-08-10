@@ -65,7 +65,7 @@ struct relop_node
     unsigned int nodetype;
     struct AST_node* l, *r;
 	unsigned int line_start;
-    struct VMQ_list_node** cond_jump_stmt, **uncond_jump_stmt;
+    char** cond_jump_stmt, **uncond_jump_stmt;
 };
 
 struct AST_node* create_AST_node(unsigned int nodetype, struct AST_node* l, struct AST_node* r);

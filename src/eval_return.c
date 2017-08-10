@@ -1,4 +1,5 @@
 #include "eval.h"
+#include "string.h"
 
 void evalReturn(struct AST_node *a)
 {
@@ -101,7 +102,7 @@ void evalReturn(struct AST_node *a)
 
 		if (return_type == func->return_type)
 		{
-			sprintf(VMQ_line, "c @/4 %d", func->VMQ_data.quad_start_line);
+			sprintf(VMQ_line, "c /4 %d", func->VMQ_data.quad_start_line);
 			appendToVMQList(VMQ_line);
 			sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 			appendToVMQList(VMQ_line);

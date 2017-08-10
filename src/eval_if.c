@@ -84,7 +84,7 @@ void evalIf(struct AST_node *a)
 
 	if(DEBUG)
 	{
-	    printf("Done!\n");
+	    printf("\nDone!\n");
 
 	    printf("Evaluating false code...");
 	    fflush(stdout);
@@ -95,6 +95,14 @@ void evalIf(struct AST_node *a)
 	struct VMQ_list_node *false_jump_line = NULL;
 	eval(false_code);
 
+	if(DEBUG)
+	{
+	    printf("Done!\n");
+
+	    printf("Evaluating true code...");
+	    fflush(stdout);
+	}
+
 	// Insert dummy string for end-of-false-code jump statement, save the line for later.
 	appendToVMQList("");
 	false_jump_line = func->VMQ_data.stmt_list_tail;
@@ -103,12 +111,23 @@ void evalIf(struct AST_node *a)
 	unsigned int true_line_start = func->VMQ_data.quad_end_line + 1;
 	eval(true_code);
 
+	if(DEBUG)
+	{
+	    printf("Done!\n");
+	    
+	    printf("Modifying jump statements from conditional evaluation stage...\n");
+	    fflush(stdout);
+	}
+
 	// Update the jump string for the end-of-false-code block
 	sprintf(false_jump_line->VMQ_line, "j %d", func->VMQ_data.quad_end_line + 1);
 
 	// Set all of the un/conditional jump statements
 	setJumpStatements(true_line_start, false_line_start);
 
-	if(temp_cond)
-	    free(temp_cond);
+	if(DEBUG)
+	{
+	    printf("Done!\n");
+	    fflush(stdout);
+	}
 }

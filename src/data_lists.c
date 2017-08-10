@@ -198,6 +198,8 @@ struct VMQ_list_node* appendToVMQList(char* VMQ_line)
 	temp = CURRENT_FUNC->VMQ_data.stmt_list_tail = CURRENT_FUNC->VMQ_data.stmt_list_tail->next = malloc(sizeof(struct VMQ_list_node));
 	
     temp->VMQ_line = malloc(32);
+    strcpy(temp->VMQ_line, VMQ_line);
+
     temp->next = NULL;
     
     CURRENT_FUNC->VMQ_data.stmt_count++; 
