@@ -4,6 +4,7 @@
 #include "helper_functions.h"
 #include "data_lists.h"
 #include "parser.tab.h"
+
 /* List Append Functions */
 struct int_list_node* appendToIntList(char* val)
 {
@@ -196,7 +197,7 @@ struct VMQ_list_node* appendToVMQList(char* VMQ_line)
     else
 	temp = CURRENT_FUNC->VMQ_data.stmt_list_tail = CURRENT_FUNC->VMQ_data.stmt_list_tail->next = malloc(sizeof(struct VMQ_list_node));
 	
-    temp->VMQ_line = strdup(VMQ_line);
+    temp->VMQ_line = malloc(32);
     temp->next = NULL;
     
     CURRENT_FUNC->VMQ_data.stmt_count++; 
@@ -279,6 +280,49 @@ void popTempVar()
 	func->VMQ_data.tempvar_stack_head = func->VMQ_data.tempvar_stack_head->next;
 	free(pvtn);
     }
+}
+
+void pushLogicNode(struct logic_node* ln)
+{
+    struct logic_stack_node* newNode = malloc(sizeof(struct logic_stack_node));
+    if(!newNode)
+	yyerror("pushLogicNode() - Memory Allocation Failed!");
+
+    newNode->val = ln;
+    
+    if(LOGIC_STACK_HEAD)
+	newNode->next = NULL;
+    else
+	newNode->next = LOGIC_STACK_HEAD;
+
+    LOGIC_STACK_HEAD = newNode;
+}
+
+void popLogicNode()
+{
+    struct logic_stack_node* delNode = LOGIC_STACK_HEAD;
+
+    if(!delNode)
+	yyerror("popLogicNode() - Attempted pop on empty stack");
+
+    LOGIC_STACK_HEAD = LOGIC_STACK_HEAD->next;
+    
+    free(delNode);
+}
+
+void appendToCondList(struct logic_node* ln)
+{
+    struct cond_list_node* newNode = malloc(sizeof(struct cond_list_node));
+    if(!newNode)
+	yyerror("appendToCondList() - Memory Allocation Failed!");
+
+    newNode->val = ln;
+    newNode->next = NULL;
+
+    if(!COND_LIST_HEAD)
+	COND_LIST_HEAD = COND_LIST_TAIL = newNode;
+    else
+	COND_LIST_TAIL = COND_LIST_TAIL->next = newNode;
 }
 
 struct VMQ_mem_node* appendToVMQMemList(int nodetype, void* node)

@@ -1,108 +1,114 @@
 #include "eval.h"
+#include "conditional_helper_functions.h"
 
 void evalIf(struct AST_node *a)
-{    
-    struct AST_node* cond_code = ((struct ctrl_node*)a)->c;
-    struct AST_node* true_code = ((struct ctrl_node*)a)->t;
-    struct AST_node* false_code = ((struct ctrl_node*)a)->f;
+{
+	struct AST_node *cond_code = ((struct ctrl_node *)a)->c;
+	struct AST_node *true_code = ((struct ctrl_node *)a)->t;
+	struct AST_node *false_code = ((struct ctrl_node *)a)->f;
 
-    struct func_list_node* func = CURRENT_FUNC;
+	struct func_list_node *func = CURRENT_FUNC;
 
-    unsigned int not_count = 0;
-    if(cond_code->nodetype == NOT)
-    {
-	struct AST_node* del_node = NULL;
-	while(cond_code->nodetype == NOT)
+	unsigned int not_flag = 0;
+    
+	if(DEBUG)
 	{
-	    del_node = cond_code;
-	    cond_code = cond_code->l;
-	    free(del_node);
-	    not_count ^= 1;
+	    printf("evalIf() - Cleaning up starting NOTs...");
+	    fflush(stdout);
 	}
 
-	((struct ctrl_node*)a)->c = cond_code;
-    }
-
-    if(isRelOp(cond_code->nodetype) && not_count)
-	cond_code->nodetype = (cond_code->nodetype == AND) ? OR : AND;
-    else if(!isRelOp(cond_code->nodetype))
-	DMTransformTree(&cond_code, not_count);
-    
-    struct func_list_node* temp = malloc(sizeof(struct func_list_node));
-
-    temp->VMQ_data.stmt_count = 0;
-    temp->VMQ_data.quad_start_line = temp->VMQ_data.quad_end_line = func->VMQ_data.quad_end_line + 1;
-    
-    if(!isRelOp(cond_code->nodetype))
-	configureLogicNodes(&cond_code);
-
-}
-
-void DMTransformTree(struct AST_node** root, unsigned int not_count)
-{
-    // Special case - if root of boolean_expression tree is 1 or more NOTs
-    if((*root)->nodetype == NOT)
-    {
-	struct AST_node* del_node = NULL;
-	while((*root)->nodetype == NOT)
+	if (cond_code->nodetype == NOT)
 	{
-	    del_node = *root;
-	    root = &((*root)->l);
-	    free(del_node);
-	    not_count ^= 1;
+		// If the cond_code tree starts with 1 or more NOTs,
+		// delete them while setting the not_flag.
+		struct AST_node *del_node = NULL;
+		while (cond_code->nodetype == NOT)
+		{
+			del_node = cond_code;
+			cond_code = cond_code->l;
+			free(del_node);
+			not_flag = !not_flag; // Two NOTs cancel each other out.
+		}
+
+		((struct ctrl_node *)a)->c = cond_code;
 	}
 
-	if(isRelOp((*root)->nodetype) && not_count)
-	   (*root)->nodetype = getRelOpComplement((*root)->nodetype);
-	else if(!isRelOp((*root)->nodetype))
-	    DMTransformTree(root, not_count);
-	
-	return;
-    }
+	if(DEBUG)
+	{
+	    printf("Done!\n");
 
-    struct AST_node* l = (*root)->l, *r = (*root)->r, *del_node = NULL;
+	    if(isRelOp(cond_code->nodetype))
+		printf("Getting RelOp Complement...");
+	    else    
+		printf("Performing De Morgan's Transformation on conditional tree...");
 
-    unsigned int lhs_not_count = not_count;
-    while(l->nodetype == NOT)
-    {
-	del_node = l;
-	l = (*root)->l = del_node->l;
-	free(del_node);
-	lhs_not_count ^= 1;
-    }
+	    fflush(stdout);
+	}
 
-    if(isRelOp(l->nodetype) && lhs_not_count)
-	l->nodetype = getRelOpComplement(l->nodetype);
-    else if(!isRelOp(l->nodetype))
-    {
-	if(lhs_not_count)
-	    l->nodetype = (l->nodetype == AND) ? OR : AND;
+	if (isRelOp(cond_code->nodetype) && not_flag)
+		cond_code->nodetype = getRelOpComplement(cond_code->nodetype);
+	else if (!isRelOp(cond_code->nodetype))
+		DMTransformTree(&cond_code, not_flag);
 
-	DMTransformTree(&l, lhs_not_count);
-    }
+	if(DEBUG)
+	{
+	    printf("Done!\n");
 
-    unsigned int rhs_not_count = not_count;
+	    if(!isRelOp(cond_code->nodetype))
+		printf("Configuring logic nodes...");
+	    else
+		printf("Creating and appending temporary conditional (logic) node...");
+	}
 
-    while(r->nodetype == NOT)
-    {
-	del_node = r;
-	r = (*root)->r = del_node->l;
-	free(del_node);
-	rhs_not_count ^= 1;
-    }
+	struct logic_node *temp_cond = NULL;
+	if (!isRelOp(cond_code->nodetype))
+		configureLogicNodes(&cond_code);
+	else
+	{ // Special case:  Conditional code is a simple relational operation.
+		// This simplifies the process later on when we need to fill in the dummy jump statements.
+		temp_cond = (struct logic_node*)create_logic_node(0, cond_code, NULL);
+		appendToCondList(temp_cond);
+	}
 
-    if(isRelOp(r->nodetype) && rhs_not_count)
-	r->nodetype = getRelOpComplement(r->nodetype);
-    else if(!isRelOp(r->nodetype))
-    {
-	if(rhs_not_count)
-	    r->nodetype = (r->nodetype == AND) ? OR : AND;
+	if(DEBUG)
+	{
+	    printf("Done!\n");
 
-	DMTransformTree(&r, rhs_not_count);
-    }
-}
+	    printf("Evaluating conditional tree...");
+	    fflush(stdout);
+	}
 
-void configureLogicNodes(struct AST_node** root)
-{
-    
+	// Evaluates the LHS and RHS of relational operators, generates incomplete un/conditional jump statements
+	// that are handled later on and are accessible from the global COND_LIST_HEAD pointer.
+	evalCond();
+
+	if(DEBUG)
+	{
+	    printf("Done!\n");
+
+	    printf("Evaluating false code...");
+	    fflush(stdout);
+	}
+
+	// Generate false (else) code.
+	unsigned int false_line_start = func->VMQ_data.quad_end_line + 1;
+	struct VMQ_list_node *false_jump_line = NULL;
+	eval(false_code);
+
+	// Insert dummy string for end-of-false-code jump statement, save the line for later.
+	appendToVMQList("");
+	false_jump_line = func->VMQ_data.stmt_list_tail;
+
+	// Generate true (if) code.
+	unsigned int true_line_start = func->VMQ_data.quad_end_line + 1;
+	eval(true_code);
+
+	// Update the jump string for the end-of-false-code block
+	sprintf(false_jump_line->VMQ_line, "j %d", func->VMQ_data.quad_end_line + 1);
+
+	// Set all of the un/conditional jump statements
+	setJumpStatements(true_line_start, false_line_start);
+
+	if(temp_cond)
+	    free(temp_cond);
 }

@@ -56,15 +56,15 @@ struct ctrl_node
 struct logic_node
 {
     unsigned int nodetype;
-    unsigned int line_start;
     struct AST_node* l, *r;
-    struct logic_node* sc_target, *t_target, *f_target;
+    struct relop_node* sc_target, *t_target, *f_target, *lhs_target;
 };
 
 struct relop_node
 {
     unsigned int nodetype;
     struct AST_node* l, *r;
+	unsigned int line_start;
     struct VMQ_list_node** cond_jump_stmt, **uncond_jump_stmt;
 };
 

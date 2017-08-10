@@ -98,7 +98,6 @@ struct AST_node* create_logic_node(unsigned int nodetype, struct AST_node* l, st
     pln->nodetype = nodetype;
     pln->l = l;
     pln->r = r;
-    pln->line_start = 0;
     pln->sc_target = pln->t_target = pln->f_target = NULL;
 
     return (struct AST_node*)pln;
@@ -113,6 +112,7 @@ struct AST_node* create_relop_node(unsigned int nodetype, struct AST_node* l, st
     prn->nodetype = nodetype;
     prn->l = l;
     prn->r = r;
+	prn->line_start = 0;
     prn->cond_jump_stmt = prn->uncond_jump_stmt = NULL;
 
     return (struct AST_node*)prn;

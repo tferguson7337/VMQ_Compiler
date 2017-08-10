@@ -9,3 +9,5 @@ VMQ
 */parser.tab.*
 */lexer.c
 gcc_stderr
+Notes
+Notes/*

@@ -29,6 +29,10 @@ VAR_LIST GLOBAL_VAR_LIST_TAIL;
 VMQ_MEM_LIST VMQ_MEM_LIST_HEAD;
 VMQ_MEM_LIST VMQ_MEM_LIST_TAIL;
 
+/* Stack and list that assist in evaluating boolean expressions */
+LOGIC_STACK LOGIC_STACK_HEAD;
+COND_LIST COND_LIST_HEAD, COND_LIST_TAIL;
+
 /* List for tracking functions as they are encountered in src file */
 FUNC_LIST FUNC_LIST_HEAD;
 

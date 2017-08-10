@@ -56,6 +56,18 @@ struct logic_stack_node
     struct logic_stack_node* next;
 };
 
+struct cond_list_node
+{
+    struct logic_node* val;
+    struct cond_list_node* next;
+};
+
+struct relop_list_node
+{
+    struct relop_node* val;
+    struct relop_list_node* next;
+};
+
 typedef struct int_list_node* INT_LIST;
 typedef struct flt_list_node* FLT_LIST;
 typedef struct var_list_node* VAR_LIST;
@@ -63,6 +75,8 @@ typedef struct str_list_node* STR_LIST;
 typedef struct VMQ_list_node* VMQ_LIST;
 typedef struct VMQ_temp_node* TEMP_STACK;
 typedef struct VMQ_mem_node*  VMQ_MEM_LIST;
+typedef struct logic_stack_node* LOGIC_STACK;
+typedef struct cond_list_node* COND_LIST;
 
 struct VMQ_func_data
 {
@@ -103,8 +117,14 @@ struct var_list_node* appendToVarList(int var_type, char* var_name);
 struct var_list_node* appendToParamList(int var_type, char* var_name);
 struct VMQ_list_node* appendToVMQList(char* VMQ_line);
 struct func_list_node* appendToFuncList(int return_type, char* func_name);
+struct VMQ_mem_node*  appendToVMQMemList(int nodetype, void* node);
+void appendToRelOpList(struct relop_node** rnode);
+void appendToCondList(struct logic_node* ln);
+
+/* Stack Pop and Push Functions */
 void pushTempVar(unsigned int type);
 void popTempVar();
-struct VMQ_mem_node*  appendToVMQMemList(int nodetype, void* node);
+void pushLogicNode(struct logic_node* ln);
+void popLogicNode();
 
 #endif
