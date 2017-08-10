@@ -50,6 +50,8 @@ void evalInput(struct AST_node *a)
 			appendToVMQList("c 0 -1");
 		else
 			appendToVMQList("c 0 -2");
+
+		appendToVMQList("^ 2");
 		break;
 	}
 

@@ -10,12 +10,6 @@ void evalIf(struct AST_node *a)
 	struct func_list_node *func = CURRENT_FUNC;
 
 	unsigned int not_flag = 0;
-    
-	if(DEBUG)
-	{
-	    printf("evalIf() - Cleaning up starting NOTs...");
-	    fflush(stdout);
-	}
 
 	if (cond_code->nodetype == NOT)
 	{
@@ -33,32 +27,10 @@ void evalIf(struct AST_node *a)
 		((struct ctrl_node *)a)->c = cond_code;
 	}
 
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-
-	    if(isRelOp(cond_code->nodetype))
-		printf("Getting RelOp Complement...");
-	    else    
-		printf("Performing De Morgan's Transformation on conditional tree...");
-
-	    fflush(stdout);
-	}
-
 	if (isRelOp(cond_code->nodetype) && not_flag)
 		cond_code->nodetype = getRelOpComplement(cond_code->nodetype);
 	else if (!isRelOp(cond_code->nodetype))
 		DMTransformTree(&cond_code, not_flag);
-
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-
-	    if(!isRelOp(cond_code->nodetype))
-		printf("Configuring logic nodes...");
-	    else
-		printf("Creating and appending temporary conditional (logic) node...");
-	}
 
 	struct logic_node *temp_cond = NULL;
 	if (!isRelOp(cond_code->nodetype))
@@ -70,38 +42,14 @@ void evalIf(struct AST_node *a)
 		appendToCondList(temp_cond);
 	}
 
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-
-	    printf("Evaluating conditional tree...");
-	    fflush(stdout);
-	}
-
 	// Evaluates the LHS and RHS of relational operators, generates incomplete un/conditional jump statements
 	// that are handled later on and are accessible from the global COND_LIST_HEAD pointer.
 	evalCond();
-
-	if(DEBUG)
-	{
-	    printf("\nDone!\n");
-
-	    printf("Evaluating false code...");
-	    fflush(stdout);
-	}
 
 	// Generate false (else) code.
 	unsigned int false_line_start = func->VMQ_data.quad_end_line + 1;
 	struct VMQ_list_node *false_jump_line = NULL;
 	eval(false_code);
-
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-
-	    printf("Evaluating true code...");
-	    fflush(stdout);
-	}
 
 	// Insert dummy string for end-of-false-code jump statement, save the line for later.
 	appendToVMQList("");
@@ -111,23 +59,9 @@ void evalIf(struct AST_node *a)
 	unsigned int true_line_start = func->VMQ_data.quad_end_line + 1;
 	eval(true_code);
 
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-	    
-	    printf("Modifying jump statements from conditional evaluation stage...\n");
-	    fflush(stdout);
-	}
-
 	// Update the jump string for the end-of-false-code block
 	sprintf(false_jump_line->VMQ_line, "j %d", func->VMQ_data.quad_end_line + 1);
 
 	// Set all of the un/conditional jump statements
 	setJumpStatements(true_line_start, false_line_start);
-
-	if(DEBUG)
-	{
-	    printf("Done!\n");
-	    fflush(stdout);
-	}
 }

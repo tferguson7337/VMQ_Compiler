@@ -3,30 +3,12 @@
 
 void evalCond()
 {
-    if (DEBUG)
-    {
-        printf("\nevalCond() - COND_LIST_HEAD == ");
-        if (COND_LIST_HEAD)
-            printf("0x%llX\n", (unsigned long long)COND_LIST_HEAD);
-        else
-            printf("NULL\n");
-        fflush(stdout);
-    }
     struct cond_list_node *cond_ptr = COND_LIST_HEAD;
     unsigned int *cur_line_num = &(CURRENT_FUNC->VMQ_data.quad_end_line);
-
-    if (DEBUG)
-    {
-        printf("Entering cond_ptr loop...\n");
-        fflush(stdout);
-    }
 
     while (cond_ptr)
     {
         struct logic_node *ptr = cond_ptr->val;
-
-        printf("\tInitializing data structures...");
-        fflush(stdout);
 
         unsigned int orig_temp_size = CURRENT_FUNC->VMQ_data.tempvar_cur_size;
         struct relop_node *l_relop, *r_relop;
@@ -34,9 +16,6 @@ void evalCond()
         char relop_code;
         char *lhs_addr_mode = NULL, *rhs_addr_mode = NULL;
         unsigned int lhs_addr, lhs_type, rhs_addr, rhs_type;
-
-        printf("Done!\n");
-        fflush(stdout);
 
         if (ptr->l && isRelOp(ptr->l->nodetype))
             l_relop = ((struct relop_node *)ptr->l);
@@ -54,21 +33,10 @@ void evalCond()
         // Special case for when the boolean expression consists of a single relational operation.
         if (ptr->nodetype == 0)
         {
-            if (DEBUG)
-            {
-                printf("\tControl has entered special case (logic_node type == 0)\n");
-                fflush(stdout);
-            }
-
             lhs = l_relop->l;
             rhs = l_relop->r;
             l_relop->line_start = *cur_line_num + 1;
 
-            if (DEBUG)
-            {
-                printf("\tEntering LHS switch...");
-                fflush(stdout);
-            }
             switch (lhs->nodetype)
             {
             case ADD:
@@ -118,13 +86,6 @@ void evalCond()
                 break;
             }
 
-            if (DEBUG)
-            {
-                printf("\tDone!\n");
-                printf("\tEntering RHS switch...");
-                fflush(stdout);
-            }
-
             switch (rhs->nodetype)
             {
             case ADD:
@@ -171,12 +132,6 @@ void evalCond()
                 rhs_addr = getNewTempVar(ADDR);
                 rhs_addr_mode = "@/-";
                 break;
-            }
-
-            if (DEBUG)
-            {
-                printf("\tDone!\n");
-                fflush(stdout);
             }
 
             if (lhs_type != rhs_type)
