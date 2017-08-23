@@ -1,6 +1,5 @@
 .gitignore
 *.q
-*.cpp
 cVMQ
 *VMQ
 .joverc
