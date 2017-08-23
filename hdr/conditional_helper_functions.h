@@ -4,12 +4,13 @@
 // Conditional Helper Functions - Used in evalIf() and evalCond()
 #include "AST.h"
 #include "error_handling.h"
+#include "eval.h"
 #include "helper_functions.h"
 #include "parser.tab.h"
 
 void DMTransformTree(struct AST_node **root, unsigned int not_count);
-void configureLogicNodes(struct AST_node **root);
-void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line);
+void configureLogicNodes(struct cond_list* list, struct AST_node **root);
+void setJumpStatements(struct cond_list* list, unsigned int true_jump_line, unsigned int false_jump_line);
 
 static inline unsigned int isSupportedRelop(unsigned int type)
 {

@@ -13,7 +13,6 @@ void init()
     VMQ_MEM_LIST_HEAD = VMQ_MEM_LIST_TAIL = NULL;
 
     LOGIC_STACK_HEAD = NULL;
-    COND_LIST_HEAD = COND_LIST_TAIL = NULL;
 
     FUNC_LIST_HEAD = CURRENT_FUNC = NULL;
 	
@@ -527,6 +526,8 @@ char* nodeTypeToString(int nodetype)
 	case GTE:	    str = "GTE"; break;
 	case EQ:	    str = "EQ"; break;
 	case NEQ:	    str = "NEQ"; break;
+	case AND:	    str = "AND"; break;
+	case OR:	    str = "OR"; break;
 	/* "Terminal"/keyword tokens */
 	case 0:		    str = "NULL(0)"; break;
 	case ASSIGNOP:	    str = "ASSIGNOP"; break;

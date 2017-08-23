@@ -312,19 +312,22 @@ void popLogicNode()
     free(delNode);
 }
 
-void appendToCondList(struct logic_node* ln)
+void appendToCondList(struct cond_list* list, struct logic_node* ln)
 {
+    if(!list)
+        yyerror("appendToCondList() - Function was passed a NULL pointer!");
+
     struct cond_list_node* newNode = malloc(sizeof(struct cond_list_node));
     if(!newNode)
-	yyerror("appendToCondList() - Memory Allocation Failed!");
+	    yyerror("appendToCondList() - Memory Allocation Failed!");
 
     newNode->val = ln;
     newNode->next = NULL;
 
-    if(!COND_LIST_HEAD)
-	COND_LIST_HEAD = COND_LIST_TAIL = newNode;
+    if(!list->head)
+        list->head = list->tail = newNode;
     else
-	COND_LIST_TAIL = COND_LIST_TAIL->next = newNode;
+        list->tail = list->tail->next = newNode;
 }
 
 struct VMQ_mem_node* appendToVMQMemList(int nodetype, void* node)

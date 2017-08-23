@@ -46,7 +46,7 @@ void DMTransformTree(struct AST_node **root, unsigned int not_flag)
 	}
 }
 
-void configureLogicNodes(struct AST_node **root)
+void configureLogicNodes(struct cond_list* list, struct AST_node **root)
 {
 	if (isRelOp((*root)->l->nodetype) || isRelOp((*root)->r->nodetype))
 	{
@@ -56,27 +56,28 @@ void configureLogicNodes(struct AST_node **root)
 		logic_root->t_target = getTrueTarget();
 		logic_root->f_target = getFalseTarget();
 
-		appendToCondList(logic_root);
+		appendToCondList(list, logic_root);
 	}
 
 	if (!isRelOp((*root)->l->nodetype))
 	{
 		pushLogicNode((struct logic_node *)(*root));
-		configureLogicNodes(&((*root)->l));
+		configureLogicNodes(list, &((*root)->l));
 		popLogicNode();
 	}
 
 	if (!isRelOp((*root)->r->nodetype))
-		configureLogicNodes(&((*root)->r));
+		configureLogicNodes(list, &((*root)->r));
 }
 
-void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line)
+void setJumpStatements(struct cond_list* list, unsigned int true_jump_line, unsigned int false_jump_line)
 {
-	while (COND_LIST_HEAD)
+	struct cond_list_node* ptr = list->head;
+	while (ptr)
 	{
 		char line_str[8];
 
-		struct logic_node *logic_ptr = COND_LIST_HEAD->val;
+		struct logic_node *logic_ptr = ptr->val;
 		struct relop_node *lhs;
 		if (logic_ptr->l && isRelOp(logic_ptr->l->nodetype))
 			lhs = ((struct relop_node *)logic_ptr->l);
@@ -91,6 +92,8 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
 
 		char *cjump_stmt = NULL, *ujump_stmt = NULL;
 		unsigned int jump_target;
+
+		// Set jump statement for LHS relop.
 		if (lhs)
 		{
 			if (lhs->cond_jump_stmt && *(lhs->cond_jump_stmt))
@@ -104,50 +107,40 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
 			// Get conditional jump target
 			if (logic_ptr->nodetype == AND)
 			{
-				if (lhs->nodetype == LT || lhs->nodetype == GT || lhs->nodetype == EQ)
+				if (isSupportedRelop(lhs->nodetype))
 				{ // Continue evaluation of RHS, no short circuit for the conditional target
-					if (rhs)
-						jump_target = ((struct relop_node *)(logic_ptr->r))->line_start;
-					else
-					{
-						struct AST_node *temp = logic_ptr->r;
-						while (!isRelOp(temp->nodetype))
-							temp = temp->l;
-
-						jump_target = ((struct relop_node *)temp)->line_start;
-					}
+					jump_target = logic_ptr->lhs_target->line_start;
 				}
 				else // lhs->nodetype == LTE, GTE, or NEQ - short circuit
 				{
 					if (logic_ptr->sc_target)
-						jump_target = ((struct relop_node *)logic_ptr->sc_target->l)->line_start;
+						jump_target = logic_ptr->sc_target->line_start;
 					else
 						jump_target = false_jump_line;
 				}
 			}
-			else // logic_ptr->nodetype == OR
+			else if(logic_ptr->nodetype == OR)
 			{
 				// Short circuit
-				if (lhs->nodetype == LT || lhs->nodetype == GT || lhs->nodetype == EQ)
+				if (isSupportedRelop(lhs->nodetype))
 				{
 					if (logic_ptr->sc_target)
-						jump_target = ((struct relop_node *)logic_ptr->sc_target->l)->line_start;
+						jump_target = logic_ptr->sc_target->line_start;
 					else
 						jump_target = true_jump_line;
 				}
 				else // lhs->nodetype = LTE, GTE, or NEQ
 				{	// Continue evaluation of RHS, no short circuit for the conditional target
-					if (rhs)
-						jump_target = rhs->line_start;
-					else
-					{
-						struct AST_node *temp = logic_ptr->r;
-						while (!isRelOp(temp->nodetype))
-							temp = temp->l;
-
-						jump_target = ((struct relop_node *)temp)->line_start;
-					}
+					jump_target = logic_ptr->lhs_target->line_start;
 				}
+			}
+			else // logic_ptr->nodetype == 0
+			{
+				// Boolean expression is a single relop
+				if(isSupportedRelop(lhs->nodetype))
+					jump_target = true_jump_line;
+				else
+					jump_target = false_jump_line;
 			}
 
 			// Generate the rest of the conditional jump statement, replace the original.
@@ -171,10 +164,16 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
                     will be no unconditional jump statement, and this block of code will not be run.
 		        */
 
-				if (logic_ptr->nodetype == AND)
+				if (logic_ptr->nodetype == AND && isSupportedRelop(lhs->nodetype))
 					jump_target = (logic_ptr->sc_target) ? ((struct relop_node *)logic_ptr->sc_target->l)->line_start : false_jump_line;
-				else // logic_ptr->nodetype == OR
+				else if (logic_ptr->nodetype == AND && isUnsupportedRelop(lhs->nodetype))
+					jump_target = (logic_ptr->t_target) ? ((struct relop_node*)logic_ptr->t_target->l)->line_start : true_jump_line;
+				else if (logic_ptr->nodetype == OR && isSupportedRelop(lhs->nodetype))
 					jump_target = (logic_ptr->sc_target) ? ((struct relop_node *)logic_ptr->sc_target->l)->line_start : true_jump_line;
+				else if (logic_ptr->nodetype == OR && isUnsupportedRelop(lhs->nodetype))
+					jump_target = (logic_ptr->f_target) ? ((struct relop_node *)logic_ptr->f_target->l)->line_start : false_jump_line;
+				else // logic_ptr->nodetype == 0
+					jump_target = (isSupportedRelop(lhs->nodetype)) ? false_jump_line : true_jump_line;
 
 				sprintf(ujump_stmt, "j %d", jump_target);
 			}
@@ -187,7 +186,7 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
 			if (rhs->cond_jump_stmt && *(rhs->cond_jump_stmt))
 				cjump_stmt = *(rhs->cond_jump_stmt);
 			else
-				yyerror("evalIf() - Relational operation has no conditional jump line!");
+				yyerror("setJumpStatements() - Relational operation has no conditional jump line!");
 
 			if (rhs->uncond_jump_stmt && *(rhs->uncond_jump_stmt))
 				ujump_stmt = *(rhs->uncond_jump_stmt);
@@ -195,10 +194,10 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
 			// Get conditional jump target
 			if (logic_ptr->nodetype == AND || logic_ptr->nodetype == OR)
 			{
-				if (rhs->nodetype == LT || rhs->nodetype == GT || rhs->nodetype == EQ)
-					jump_target = (logic_ptr->t_target) ? ((struct relop_node *)logic_ptr->t_target->l)->line_start : true_jump_line;
+				if (isSupportedRelop(rhs->nodetype))
+					jump_target = (logic_ptr->t_target) ? logic_ptr->t_target->line_start : true_jump_line;
 				else // rhs->nodetype == LTE, GTE, or NEQ
-					jump_target = (logic_ptr->f_target) ? ((struct relop_node *)logic_ptr->f_target->l)->line_start : false_jump_line;
+					jump_target = (logic_ptr->f_target) ? logic_ptr->f_target->line_start : false_jump_line;
 			}
 
 			// Generate the rest of the conditional jump statement, replace the original.
@@ -208,31 +207,37 @@ void setJumpStatements(unsigned int true_jump_line, unsigned int false_jump_line
 			if (ujump_stmt)
 			{
 				/*
-		    For the LHS, unconditional jumps only occur in the cases when the conditional
-		    jump target is not a short circuit jump.
+		    	For the rhs, unconditional jumps only occur in the cases when the conditional
+		    	jump target is not a short circuit jump.
 
-		    When logic_ptr->nodetype == AND && (rhs->nodetype == LT, GT, or EQ), the unconditional
-		    jump is the short circuit for the AND.
+		    	When logic_ptr->nodetype == AND && (rhs->nodetype == LT, GT, or EQ), the unconditional
+		    	jump is the short circuit for the AND.
 
-		    When logic_ptr->nodetype == OR && (rhs->nodetype == LTE, GTE, or NEQ), the unconditional
-		    jump is the short circuit for the OR.
+		    	When logic_ptr->nodetype == OR && (rhs->nodetype == LTE, GTE, or NEQ), the unconditional
+		    	jump is the short circuit for the OR.
 
-		    If the conditional jump results in a short circuit when it evaluates to true, then there
-		    will be no unconditional jump statement, and this block of code will not be run.
-		*/
-
-				if (logic_ptr->nodetype == AND)
-					jump_target = (logic_ptr->sc_target) ? ((struct relop_node *)logic_ptr->sc_target->l)->line_start : false_jump_line;
-				else // logic_ptr->nodetype == OR
-					jump_target = (logic_ptr->sc_target) ? ((struct relop_node *)logic_ptr->sc_target->l)->line_start : true_jump_line;
+		    	If the conditional jump results in a short circuit when it evaluates to true, then there
+		    	will be no unconditional jump statement, and this block of code will not be run.
+				*/
+				
+				if (logic_ptr->nodetype == AND && isSupportedRelop(rhs->nodetype))
+					jump_target = (logic_ptr->sc_target) ? logic_ptr->sc_target->line_start : false_jump_line;
+				else if (logic_ptr->nodetype == AND && isUnsupportedRelop(rhs->nodetype))
+					jump_target = (logic_ptr->t_target) ? logic_ptr->t_target->line_start : true_jump_line;
+				else if (logic_ptr->nodetype == OR && isUnsupportedRelop(rhs->nodetype))
+					jump_target = (logic_ptr->sc_target) ? logic_ptr->sc_target->line_start : true_jump_line;
+				else if (logic_ptr->nodetype == OR && isSupportedRelop(rhs->nodetype))
+					jump_target = (logic_ptr->f_target) ? logic_ptr->f_target->line_start : false_jump_line;
 
 				sprintf(ujump_stmt, "j %d", jump_target);
 			}
 		}
-
+		
 		// Move to the next node, free the one we finished working on.
-		COND_LIST_HEAD = COND_LIST_HEAD->next;
+		struct cond_list_node* del = ptr;
+		ptr = ptr->next;
 		free(logic_ptr);
+		free(del);
 	}
-	COND_LIST_TAIL = NULL;
+	list->head = list->tail = NULL;
 }

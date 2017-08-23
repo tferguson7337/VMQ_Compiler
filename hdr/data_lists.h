@@ -62,6 +62,13 @@ struct cond_list_node
     struct cond_list_node* next;
 };
 
+// Conditional list struct.
+struct cond_list
+{
+    struct cond_list_node* head;
+    struct cond_list_node* tail;
+};
+
 struct relop_list_node
 {
     struct relop_node* val;
@@ -119,7 +126,7 @@ struct VMQ_list_node* appendToVMQList(char* VMQ_line);
 struct func_list_node* appendToFuncList(int return_type, char* func_name);
 struct VMQ_mem_node*  appendToVMQMemList(int nodetype, void* node);
 void appendToRelOpList(struct relop_node** rnode);
-void appendToCondList(struct logic_node* ln);
+void appendToCondList(struct cond_list* list, struct logic_node* ln);
 
 /* Stack Pop and Push Functions */
 void pushTempVar(unsigned int type);

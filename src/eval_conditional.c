@@ -1,9 +1,9 @@
 #include "eval.h"
 #include "conditional_helper_functions.h"
 
-void evalCond()
+void evalCond(struct cond_list* list)
 {
-    struct cond_list_node *cond_ptr = COND_LIST_HEAD;
+    struct cond_list_node *cond_ptr = list->head;
     unsigned int *cur_line_num = &(CURRENT_FUNC->VMQ_data.quad_end_line);
 
     while (cond_ptr)
@@ -30,16 +30,17 @@ void evalCond()
         if (!l_relop && !r_relop)
             yyerror("evalCond() - A logic_node with no relop_node children ended up in the conditional list!");
 
-        // Special case for when the boolean expression consists of a single relational operation.
+        // Case:  No logical operations in boolean expression - just a simple RELOP.
         if (ptr->nodetype == 0)
         {
             lhs = l_relop->l;
             rhs = l_relop->r;
             l_relop->line_start = *cur_line_num + 1;
 
-            switch (lhs->nodetype)
+            // Evaluate the LHS of the relational operation.
+            switch(lhs->nodetype)
             {
-            case ADD:
+                case ADD:
             case SUB:
             case MUL:
             case DIV:
@@ -86,6 +87,7 @@ void evalCond()
                 break;
             }
 
+            // Evaluate the RHS of the relational operation.
             switch (rhs->nodetype)
             {
             case ADD:
@@ -134,6 +136,7 @@ void evalCond()
                 break;
             }
 
+            // If the data type of the LHS doesn't match the RHS, we need to perform a cast prior to executing the conditional code.
             if (lhs_type != rhs_type)
             {
 
@@ -164,7 +167,7 @@ void evalCond()
                 sprintf(VMQ_line, "%c %s%d %s%d", relop_code, lhs_addr_mode, lhs_addr, rhs_addr_mode, rhs_addr);
                 appendToVMQList(VMQ_line);
             }
-            else // lhs_type == rhs_type
+            else // lhs_type == rhs_type : No cast required.
             {
                 if (l_relop->nodetype == LT || l_relop->nodetype == GTE)
                     relop_code = 'L';
@@ -183,23 +186,29 @@ void evalCond()
 
             l_relop->cond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
 
-            // False code comes first, is if the relational operator was a (<=), (>=), or (!=),
-            // then we need to add an additional line.
-            if (isUnsupportedRelop(l_relop->nodetype))
+            // If using a supported relational operator (<, >, or ==), then the jump target
+            // for that statement will be for the true codeblock.  Since this is the codeblock
+            // immediately following the conditional statement, we need to insert another jump
+            // statement between the conditional and true codeblock for when the conditional
+            // fails and we want to execute the false codeblock.
+            // Again: this only applies to relational operators "<", ">", and "==".
+            if(isSupportedRelop(l_relop->nodetype))
             {
-                // Dummy unconditional jump statement
                 appendToVMQList("");
                 l_relop->uncond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
             }
+
         }
-        else // ptr->nodetype == AND || ptr->nodetype == OR
+        else // Boolean expression contains one or more logical operations (|| &&)
         {
+            // Evaluate the LHS of the logical operation
             if (l_relop)
             {
                 lhs = l_relop->l;
                 rhs = l_relop->r;
                 l_relop->line_start = *cur_line_num + 1;
 
+                // Evaluate the LHS of the relational operator.
                 switch (lhs->nodetype)
                 {
                 case ADD:
@@ -248,6 +257,7 @@ void evalCond()
                     break;
                 }
 
+                // Evaluate the RHS of the relational operator.
                 switch (rhs->nodetype)
                 {
                 case ADD:
@@ -296,6 +306,7 @@ void evalCond()
                     break;
                 }
 
+                // Check if casting is required.
                 if (lhs_type != rhs_type)
                 {
                     // Types don't match, so we need to perform a cast before comparing values.
@@ -325,7 +336,7 @@ void evalCond()
                     sprintf(VMQ_line, "%c %s%d %s%d", relop_code, lhs_addr_mode, lhs_addr, rhs_addr_mode, rhs_addr);
                     appendToVMQList(VMQ_line);
                 }
-                else // lhs_type == rhs_type
+                else // lhs_type == rhs_type : No casting required.
                 {
                     if (l_relop->nodetype == LT || l_relop->nodetype == GTE)
                         relop_code = 'L';
@@ -344,8 +355,11 @@ void evalCond()
 
                 l_relop->cond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
 
-                // False code comes first, is if the relational operator was a (<=), (>=), or (!=),
-                // then we need to add an additional line.
+                // True codeblock is first
+                // If the LHS of an AND evaluates to true, then we want to immediately begin evaluating the RHS of the
+                // AND - if it's false then we jump to the short circuit target.  If using a supported relop, we need an
+                // additional jump statement.  For OR, evaluating to true causes a short-circuit while false causes the need
+                // the evaluate the RHS.  Unsupported relational operators for OR require an additional jump.
                 if ((ptr->nodetype == AND && isSupportedRelop(l_relop->nodetype)) || (ptr->nodetype == OR && isUnsupportedRelop(l_relop->nodetype)))
                 {
                     // Dummy unconditional jump statement
@@ -354,12 +368,14 @@ void evalCond()
                 }
             }
 
+            // Evaluate the RHS of the logical operation (if available: "RHS" may be some other logical operation).
             if (r_relop)
             {
                 lhs = r_relop->l;
                 rhs = r_relop->r;
                 r_relop->line_start = *cur_line_num + 1;
 
+                // Evaluate LHS of relational operator.
                 switch (lhs->nodetype)
                 {
                 case ADD:
@@ -408,6 +424,7 @@ void evalCond()
                     break;
                 }
 
+                // Evaluate RHS of relational operator.
                 switch (rhs->nodetype)
                 {
                 case ADD:
@@ -456,6 +473,7 @@ void evalCond()
                     break;
                 }
 
+                // Check to see if we need to cast.
                 if (lhs_type != rhs_type)
                 {
                     // Types don't match, so we need to perform a cast before comparing values.
@@ -485,7 +503,7 @@ void evalCond()
                     sprintf(VMQ_line, "%c %s%d %s%d", relop_code, lhs_addr_mode, lhs_addr, rhs_addr_mode, rhs_addr);
                     appendToVMQList(VMQ_line);
                 }
-                else // lhs_type == rhs_type
+                else // lhs_type == rhs_type : No casting required.
                 {
                     if (r_relop->nodetype == LT || r_relop->nodetype == GTE)
                         relop_code = 'L';
@@ -504,14 +522,22 @@ void evalCond()
 
                 r_relop->cond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
 
-                appendToVMQList("");
-                r_relop->uncond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
+                // Unconditional jump statement is needed after a conditional statement on the RHS of
+                // a logical operation if the RHS relational operator is a "<", ">", or "==".
+                if(isSupportedRelop(r_relop->nodetype))
+                {
+                    // Dummy jump statement for the unconditional jump after the conditional statement.
+                    appendToVMQList("");
+                    r_relop->uncond_jump_stmt = &CURRENT_FUNC->VMQ_data.stmt_list_tail->VMQ_line;
+                }
             }
         }
 
+        // Free any temporary variables that were used during current conditional evaluation.
         while (orig_temp_size != CURRENT_FUNC->VMQ_data.tempvar_cur_size)
             freeTempVar();
 
         cond_ptr = cond_ptr->next;
+        
     }
 }

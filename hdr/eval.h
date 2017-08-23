@@ -14,9 +14,8 @@ extern void eval(struct AST_node *a);
 
 // Specfic case functions for eval to help break up the work load, so we don't have a 2000+ line function
 extern void evalReturn(struct AST_node *a);
-extern void evalIf(struct AST_node *a);
-extern void evalWhile(struct AST_node *a);
-extern void evalCond();
+extern void evalControl(struct AST_node *a);
+extern void evalCond(struct cond_list* list);
 extern void evalInput(struct AST_node *a);
 extern void evalOutput(struct AST_node *a);
 extern void evalAssignOp(struct AST_node *a);

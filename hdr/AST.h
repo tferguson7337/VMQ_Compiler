@@ -57,7 +57,7 @@ struct logic_node
 {
     unsigned int nodetype;
     struct AST_node* l, *r;
-    struct relop_node* sc_target, *t_target, *f_target, *lhs_target;
+	struct relop_node* sc_target, *t_target, *f_target, *lhs_target;
 };
 
 struct relop_node
@@ -65,7 +65,7 @@ struct relop_node
     unsigned int nodetype;
     struct AST_node* l, *r;
 	unsigned int line_start;
-    char** cond_jump_stmt, **uncond_jump_stmt;
+	char** cond_jump_stmt, **uncond_jump_stmt;
 };
 
 struct AST_node* create_AST_node(unsigned int nodetype, struct AST_node* l, struct AST_node* r);

@@ -18,10 +18,8 @@ void eval(struct AST_node *a)
 		evalReturn(a);
 		break;
 	case IF:
-		evalIf(a);
-		break;
 	case WHILE:
-		evalWhile(a);
+		evalControl(a);
 		break;
 	case INPUT:
 		evalInput(a);
@@ -50,11 +48,10 @@ void eval(struct AST_node *a)
 		evalMath(a);
 		break;
 
-	// FUNC_CALL - function call outside of assigment, throw away the return value (operand 1 == 0)
 	case FUNC_CALL:
 		func = ((struct func_node *)a->l)->val;
 		evalFuncCall(a, func->param_list_tail);
-		sprintf(VMQ_line, "c 0 %d", func->VMQ_data.quad_start_line);
+		sprintf(VMQ_line, "c #/4 %d", func->VMQ_data.quad_start_line);
 		appendToVMQList(VMQ_line);
 		sprintf(VMQ_line, "^ %d", func->param_count * VMQ_ADDR_SIZE);
 		appendToVMQList(VMQ_line);
