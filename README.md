@@ -10,4 +10,4 @@ The original version that was turned in can be found here: https://github.com/Ss
 The final version of the group project was largely unfinished, very buggy, and incredibly messy.
 
 This version is entirely written by me, from the ground up.  My goal is to finish the entire project, and keep the code correct and looking presentable.  
-The code is being developed on and for Linux (ubuntu 17.04), the Makefile works based off of this constraint.  However, the source code for the compiler *should* be platform independent.
+The code is being developed on and for Linux (ubuntu 17.04), the Makefile works based off of this constraint.  However, the source code for the compiler *should* be platform independent, assuming that your platform has access to lex/flex and yacc/bison and whatever libraries they are dependent on.
