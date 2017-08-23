@@ -5,8 +5,6 @@ cVMQ
 .joverc
 *.t
 *.json
-*/parser.tab.*
-*/lexer.c
 gcc_stderr
 Notes
 Notes/*
