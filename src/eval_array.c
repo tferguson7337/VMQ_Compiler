@@ -11,7 +11,7 @@ void evalArrAccess(struct AST_node *a)
 	struct func_list_node *func = NULL;
 	struct VMQ_temp_node *result = &CURRENT_FUNC->VMQ_data.math_result;
 	struct var *l_val = ((struct var_node *)a->l)->val, *r_val = NULL;
-	unsigned int lit_loc;
+	unsigned int lit_loc = 0;
 
 	char type_size = (l_val->var_type == INT) ? '2' : '4';
 

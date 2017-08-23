@@ -128,7 +128,7 @@ NEWLINE (\n)
 			    else
 				data_type = FLOAT;
 
-			    yylval.VAR = appendToVarList(data_type, yytext)->pv;
+			    yylval.VAR_REF = appendToVarList(data_type, yytext)->pv;
 			    
 			    return ID;
 			}
@@ -143,7 +143,7 @@ NEWLINE (\n)
 			    {
 				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR = varListPtr->pv;
+				    yylval.VAR_REF = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;
@@ -155,7 +155,7 @@ NEWLINE (\n)
 			    {
 				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR = varListPtr->pv;
+				    yylval.VAR_REF = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;
@@ -167,7 +167,7 @@ NEWLINE (\n)
 			    {
 				if(strcmp(varListPtr->pv->var_name, yytext) == 0)
 				{
-				    yylval.VAR = varListPtr->pv;
+				    yylval.VAR_REF = varListPtr->pv;
 				    return ID;
 				}
 				varListPtr = varListPtr->next;

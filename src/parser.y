@@ -24,7 +24,7 @@
     struct intlit* INT_LIT;	    /* Used to reference a literal integer */
     struct fltlit* FLT_LIT;	    /* Used to reference a literal float */
     struct strlit* STR_LIT;	    /* Used to reference a literal string */
-    struct var* VAR;		    /* Used to reference a variable */
+    struct var* VAR_REF;		    /* Used to reference a variable */
     struct func_list_node* FUNC;    /* Used to reference a function */
 }
 
@@ -42,7 +42,7 @@
 %token STREAMIN STREAMOUT
 
 /* Variable/Function Token */
-%token <VAR> ID
+%token <VAR_REF> ID
 
 /* Keyword tokens */
 %token CIN COUT ELSE 
