@@ -64,7 +64,7 @@ Yes.  The compiler will accept a small and basic subset of C++-like programs, wi
     - The target language syntax pdf shows that the grammar for if/else accepts a **statement** after an **else**, but a statement can be a compound statement, which can be an empty block (curly braces that enclose no statements).
 - Include statements
   - Include statements are simply treated as comments - they are ignored.
-    - I/O capabilities are inherently "cherry-picked" from <iostream>, but the compiler itself makes no use of any include files.
+    - I/O capabilities are inherently "cherry-picked" from **iostream**, but the compiler itself makes no use of any include files.
   - In fact, any preprocessor statement should be ignored.
 - Classes, namespaces, structs, and other more advanced scoping/data structures are unsupported.
   - cin, cout, and endl are accepted without applying the "std::" prefix or a "using namespace std;" statement.
