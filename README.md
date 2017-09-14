@@ -20,7 +20,7 @@ If you're running from a Linux-based system, you can compile the compiler and VM
 ### "C++-ish"?
 Yes.  The compiler will accept a small and basic subset of C++-like programs, with a number of caveats.
 
-Here's what it supports:
+#### Here's what it supports:
 + int and float data types
   + variables
   + floats
@@ -54,7 +54,7 @@ Here's what it supports:
   + int -> float
   + float -> int
 
-At the time of writing this, here's what it *does not* support, *including, but not limited to*:
+#### At the time of writing this, here's what it *does not* support, *including, but not limited to*:
 - Declaring variables after function definitions/statements
   - Due to how the target language syntax is defined (see Project_Info/Target-Language-Syntax-2.pdf for more detail), **all* variable definitions in global space must occur prior to any function definition.  Any variable in local scope must be declared prior to any statements within the function.
 - Incrementation/decrementation operators (++, --)
