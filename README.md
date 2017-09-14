@@ -57,6 +57,7 @@ Yes.  The compiler will accept a small and basic subset of C++-like programs, wi
 #### At the time of writing this, here's what it *does not* support, *including, but not limited to*:
 - Declaring variables after function definitions/statements
   - Due to how the target language syntax is defined (see Project_Info/Target-Language-Syntax-2.pdf for more detail), **all* variable definitions in global space must occur prior to any function definition.  Any variable in local scope must be declared prior to any statements within the function.
+- Declaring and initializing a variable within the same statement (e.g., int x = 0).
 - Incrementation/decrementation operators (++, --)
   - Equivalent statements (e.g., var = var + 1; or var += 1;) still work, of course.
 - If statements with no accompanying else
